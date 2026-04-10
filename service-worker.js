@@ -4,7 +4,7 @@
 
 const CACHE_NAME = 'shuan-v4-rc2';
 const FALLBACK_URLS = [
-  './週案管理v4.html',
+  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -50,7 +50,7 @@ self.addEventListener('fetch', event => {
         return caches.match(event.request).then(cached => {
           if (cached) return cached;
           // キャッシュにもない場合はメインのHTMLを返す
-          return caches.match('./週案管理v4.html');
+          return caches.match('./index.html');
         });
       })
   );
