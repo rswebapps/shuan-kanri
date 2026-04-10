@@ -1,0 +1,34 @@
+{
+  "name": "週案管理",
+  "short_name": "週案管理",
+  "description": "小学校教員向け週案管理アプリ",
+  "start_url": "/shuan-kanri/週案管理v4.html",
+  "scope": "/shuan-kanri/",
+  "display": "standalone",
+  "background_color": "#f2f5f9",
+  "theme_color": "#1a6fc4",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/shuan-kanri/週案管理v4.html",
+      "accept": {
+        "application/x-shuan": [".sw4"],
+        "application/json": [".json"]
+      }
+    }
+  ]
+}
