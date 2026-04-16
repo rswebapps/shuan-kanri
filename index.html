@@ -586,6 +586,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
       <button class="ctab" data-ct="koury">🏫 学級・交流設定</button>
       <button class="ctab" data-ct="subjects">📚 教科・時数設定</button>
       <button class="ctab" data-ct="schedule">📅 行事予定</button>
+      <button class="ctab" data-ct="app">📱 アプリ管理</button>
     </div>
     <div id="cfg-body"></div>
   </div>
@@ -2131,11 +2132,88 @@ function appendSchedule(iso,title){
     S.schedule[iso]=norm;
   }
 }
+// ─── SETTINGS: APP MANAGEMENT ────────────────────────────────────
+function renderCfgApp(){
+  const isPwa=window.matchMedia('(display-mode: standalone)').matches
+    ||window.navigator.standalone===true;
+  document.getElementById('cfg-body').innerHTML=`
+  <div class="cfg-sec">
+    <h3>アップデート</h3>
+    <div class="cfg-note">新しいバージョンが公開されている場合、確認・適用できます。</div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn-save" id="btn-sw-check" style="background:var(--blue)">🔄 更新を確認する</button>
+      <span id="sw-status" style="font-size:12px;color:var(--muted)">ボタンを押して確認してください</span>
+    </div>
+  </div>
+  <div class="cfg-sec">
+    <h3>アンインストール</h3>
+    <div class="cfg-note">
+      Service Worker の登録を解除し、キャッシュを削除します。<br>
+      ショートカットからは引き続き開けますが、再インストールするまでブラウザ版として動作します。
+    </div>
+    <button class="btn-save" id="btn-sw-uninstall" style="background:#c62828">🗑 アンインストール</button>
+  </div>`;
+
+  // ─ 更新確認 ─
+  document.getElementById('btn-sw-check').onclick=async()=>{
+    const statusEl=document.getElementById('sw-status');
+    const btn=document.getElementById('btn-sw-check');
+    if(!('serviceWorker' in navigator)){
+      statusEl.textContent='⚠ このブラウザはService Workerに対応していません';
+      return;
+    }
+    statusEl.textContent='確認中...';
+    btn.disabled=true;
+    try{
+      const reg=await navigator.serviceWorker.getRegistration();
+      if(!reg){statusEl.textContent='⚠ Service Workerが登録されていません（ブラウザ版で動作中）';btn.disabled=false;return;}
+      await reg.update();
+      if(reg.waiting){
+        statusEl.innerHTML='<span style="color:#e65100;font-weight:700">✦ 新しいバージョンがあります</span>';
+        btn.textContent='🔄 更新して再起動';
+        btn.disabled=false;
+        btn.onclick=()=>{
+          reg.waiting.postMessage({type:'SKIP_WAITING'});
+          window.location.reload();
+        };
+      } else {
+        statusEl.innerHTML='<span style="color:var(--col-pos)">✓ 最新版です</span>';
+        btn.disabled=false;
+      }
+    }catch(e){
+      statusEl.textContent='エラー：'+e.message;
+      btn.disabled=false;
+    }
+  };
+
+  // ─ アンインストール ─
+  document.getElementById('btn-sw-uninstall').onclick=()=>{
+    const ok=confirm(
+      'アンインストールします。よろしいですか？\n\n'+
+      '※ 今後もショートカットから開けますが、再びインストールするまでブラウザ版で動作します。\n'+
+      '※ 再インストールが必要な場合は、ブラウザで直接URLを開き、アドレスバー右の「インストール」を押してください。\n'+
+      '※ ショートカット自体はご自身で削除してください。'
+    );
+    if(!ok) return;
+    (async()=>{
+      if('serviceWorker' in navigator){
+        const regs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r=>r.unregister()));
+      }
+      if('caches' in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.map(k=>caches.delete(k)));
+      }
+      alert('アンインストールが完了しました。\nこのページはブラウザ版として動作します。');
+    })();
+  };
+}
 function renderCfg(){
   document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('on',b.dataset.ct===curCfgTab));
   if(curCfgTab==='slots') renderCfgSlots();
   else if(curCfgTab==='subjects') renderCfgSubjects();
   else if(curCfgTab==='schedule') renderCfgSchedule();
+  else if(curCfgTab==='app') renderCfgApp();
   else renderCfgKoury();
 }
 
@@ -3982,8 +4060,23 @@ function init(){
   // 起動画面ボタン
   document.getElementById('startup-load').onclick=()=>loadFromFile();
   document.getElementById('startup-new').onclick=()=>enterApp();
-  // 起動画面を表示してスタート
+  // まず起動画面を表示（launchQueueがファイルを渡してきた場合に上書き）
   showStartupScreen();
+  // ─── File Handling API：データファイルのダブルクリック起動対応 ───
+  if('launchQueue' in window){
+    window.launchQueue.setConsumer(async launchParams=>{
+      if(!launchParams.files||launchParams.files.length===0) return; // ファイルなし→起動画面のまま
+      try{
+        const fh=launchParams.files[0];
+        const file=await fh.getFile();
+        const text=await file.text();
+        applyJsonData(text,fh); // 成功時はapplyJsonData内でenterApp()が呼ばれる
+      }catch(e){
+        console.warn('File Handling API error:',e);
+        // 失敗時は起動画面のまま
+      }
+    });
+  }
 }
 init();
 
