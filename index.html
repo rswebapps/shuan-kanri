@@ -1,12 +1,28 @@
 <!DOCTYPE html>
+<!--
+  週案管理アプリ
+  Copyright (c) 2025 voteno. All rights reserved.
+
+  本ソフトウェアの著作権は voteno に帰属します。
+
+  改変・再配布は自由に行うことができますが、
+  その際は以下の事項を明記してください：
+    1. 著作者名（voteno）および本ソフトウェアに基づいていること
+    2. オリジナルから改変を加えた場合は、改変した箇所またはその概要
+
+  本ソフトウェアは現状のまま提供されており、
+  明示・黙示を問わず、いかなる保証も行いません。
+  利用によって生じた損害について著作者は責任を負いません。
+-->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1a6fc4">
 <link rel="manifest" href="manifest.json">
-<title>週案管理 v4</title>
+<title>週案管理 RC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
 <style>
 :root{
   --blue:#1a6fc4;--blue-lt:#e8f2fc;--sem1:#1a6fc4;--sem2:#2e7d32;--sem3:#7b1fa2;
@@ -31,24 +47,25 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
 .hdf select option{color:#333;background:#fff}
 #hd-today{font-size:11px;opacity:.7}
 #hd-saved{font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px;display:none}
-/* JSON保存状況インジケーター */
-#hd-json-status{font-size:10px;padding:2px 8px;border-radius:10px;white-space:nowrap;cursor:default}
-#hd-json-status.ok{background:rgba(255,255,255,.15);color:rgba(255,255,255,.8)}
-#hd-json-status.warn{background:rgba(255,200,0,.35);color:#fff;font-weight:700}
-#hd-json-status.danger{background:rgba(220,50,50,.5);color:#fff;font-weight:700;animation:blink 1.5s infinite}
+/* 保存状態インジケーター */
+#hd-json-status{font-size:10px;padding:2px 8px;border-radius:10px;white-space:nowrap;cursor:default;display:none}
+#hd-json-status.saved{background:rgba(255,255,255,.15);color:rgba(255,255,255,.85)}
+#hd-json-status.unsaved{background:rgba(220,50,50,.55);color:#fff;font-weight:700;animation:blink 1.5s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
-/* 起動時バナー */
-#json-banner{display:none;position:fixed;top:46px;left:0;right:0;z-index:150;
-  background:#b71c1c;color:#fff;font-size:12px;font-weight:700;
-  padding:7px 16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-#json-banner button{margin-left:14px;padding:3px 12px;background:#fff;color:#b71c1c;
-  border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+/* 齟齬バナー */
+#mismatch-banner{display:none;position:fixed;top:46px;left:0;right:0;z-index:149;
+  background:#e65100;color:#fff;font-size:12px;font-weight:700;
+  padding:7px 16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3);transition:opacity .3s}
+#mismatch-banner.dimmed{opacity:.45;font-weight:400}
+#mismatch-banner button{margin-left:10px;padding:3px 10px;background:#fff;border:none;
+  border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+#mismatch-banner .mb-reload{color:#e65100}
+#mismatch-banner .mb-continue{color:#555;background:rgba(255,255,255,.75)}
 .hd-btn{padding:4px 10px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);
   color:#fff;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;
   white-space:nowrap;transition:background .12s}
 .hd-btn:hover{background:rgba(255,255,255,.32)}
 .hd-btn.accent{background:rgba(255,255,255,.28);font-weight:700}
-#hd-right{display:flex;align-items:center;gap:6px;margin-left:auto}
 /* SEMBAR */
 #sembar{background:var(--card);border-bottom:2px solid var(--border);
   display:flex;align-items:flex-end;padding:0 12px;flex-shrink:0}
@@ -156,12 +173,21 @@ td.sltd.owari{background:#e8eaf6;color:#283593}
 td.memo-hd{background:#fffde7;font-size:10px;font-weight:700;text-align:center;
   padding:2px 4px;border-right:2px solid #f9a825;position:sticky;left:0;z-index:5;
   color:#f57f17;white-space:nowrap;vertical-align:middle}
-td.memo-hd.leave-hd{background:#e8f5e9;color:#2e7d32;border-right-color:#43a047}
-td.memo-hd.hw-hd{background:#e3f2fd;color:#1565c0;border-right-color:#1e88e5}
+td.memo-hd.schedule-hd{background:#e0f2f1;color:#00695c;border-right-color:#26a69a}
+td.memo-cell.schedule-cell{background:#e0f2f1;border-color:#80cbc4}
+.schedule-inp.selected{background:#b2dfdb!important;outline:2px solid #26a69a;}
+.schedule-display{font-size:11px;color:var(--text);line-height:1.5;padding:2px 3px;min-height:20px;word-break:break-all}
+td.memo-hd.leave-hd{background:#e8f5e9;color:#2e7d32;border-right-color:#43a047}td.memo-hd.hw-hd{background:#e3f2fd;color:#1565c0;border-right-color:#1e88e5}
+td.memo-hd.renraku-hd{background:#e8eaf6;color:#283593;border-right-color:#3949ab}
+td.memo-hd.aim-hd{background:#fff8e1;color:#f57f17;border-right-color:#ffb300}
+td.memo-hd.notice-hd{background:#fce4ec;color:#880e4f;border-right-color:#e91e63}
 td.memo-hd.note-hd{background:#f3e5f5;color:#7b1fa2;border-right-color:#8e24aa}
 td.memo-cell{border:1px solid #ffe082;background:#fffde7;padding:1px 3px;vertical-align:top}
 td.memo-cell.leave-cell{background:#e8f5e9;border-color:#a5d6a7}
 td.memo-cell.hw-cell{background:#e3f2fd;border-color:#90caf9}
+td.memo-cell.renraku-cell{background:#e8eaf6;border-color:#9fa8da}
+td.memo-cell.aim-cell{background:#fff8e1;border-color:#ffe082}
+td.memo-cell.notice-cell{background:#fce4ec;border-color:#f48fb1}
 td.memo-cell.note-cell{background:#f3e5f5;border-color:#ce93d8}
 td.memo-cell textarea{width:100%;border:none;background:transparent;font-family:inherit;
   font-size:11px;resize:none;padding:1px 3px;outline:none;color:var(--text);
@@ -184,7 +210,7 @@ td.cell.inactive:hover{background:#ebebeb!important}
   transition:all .12s;user-select:none}
 .cin{display:flex;flex-direction:column;min-height:54px;padding:3px}
 .srow{display:flex;align-items:flex-start;gap:2px}
-.sname{font-size:12px;font-weight:700;line-height:1.3;flex:1}
+.sname{font-size:20px;font-weight:700;line-height:1.3;flex:1}
 .tbadge{font-size:9px;padding:0 3px;border-radius:8px;font-weight:700;flex-shrink:0;margin-top:1px}
 .tb-f{background:#e3f2fd;color:var(--col-full)}
 .tb-h{background:#fff3e0;color:var(--col-half)}
@@ -315,11 +341,13 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   td.sltd.gyo{background:#fff8e1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sltd.hiru{background:#fce4ec!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sltd.owari{background:#e8eaf6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  td.cell{border:1px solid #ccc!important;padding:1px 2px!important;min-height:auto!important;vertical-align:top}
+  td.cell{border:1px solid #ccc!important;padding:2px 3px!important;
+    min-height:15mm!important;vertical-align:top;height:1px}
+  td.cell.nocount{min-height:8mm!important}
   td.cell.inactive{display:none!important}
-  .cin{min-height:auto!important;padding:0!important}
+  .cin{min-height:inherit!important;padding:0!important}
   /* 教科名：教科色を維持しつつ印刷で確実に表示 */
-  .sname{font-size:8px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sname{font-size:13px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* メモ・バッジ類は黒で統一 */
   .cmemo{font-size:7px!important;color:#333!important}
   .tbadge{font-size:6px!important;padding:0 2px!important;
@@ -335,8 +363,13 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   /* textarea→div変換後：黒で表示 */
   .print-ta-div{font-size:7px!important;white-space:pre-wrap;word-break:break-all;
     color:#333!important;padding:1px 2px;min-height:8px;line-height:1.3}
+  .schedule-display{font-size:7px!important;color:#333!important;line-height:1.4!important;padding:1px 2px!important}
+  td.memo-hd.schedule-hd,td.memo-cell.schedule-cell{background:#e0f2f1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.memo-hd.leave-hd,td.memo-cell.leave-cell{background:#e8f5e9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.memo-hd.hw-hd,td.memo-cell.hw-cell{background:#e3f2fd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td.memo-hd.renraku-hd,td.memo-cell.renraku-cell{background:#e8eaf6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td.memo-hd.aim-hd,td.memo-cell.aim-cell{background:#fff8e1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td.memo-hd.notice-hd,td.memo-cell.notice-cell{background:#fce4ec!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.memo-hd.note-hd,td.memo-cell.note-cell{background:#f3e5f5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* 集計3表 */
   #print-summary{margin-top:5mm;font-size:8px;page-break-inside:avoid}
@@ -355,9 +388,16 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   /* メモ1〜5は空でも最低高さを確保して枠を表示 */
   td.memo-cell.note-cell .print-ta-div,
   td.memo-cell.note-cell textarea{min-height:14px!important}
-  /* 配布用印刷モード：バッジ・集計表のみ非表示 */
+  /* 配布用印刷モード：バッジ・集計表・校内メモのみ非表示 */
   body.print-student .cbadges-sub{display:none!important}
   body.print-student #print-summary{display:none!important}
+  body.print-student .note-row{display:none!important}
+  /* 配布用：時数バッジ非表示・教科名中央揃え・コマ高さ維持 */
+  body.print-student .tbadge{display:none!important}
+  body.print-student td.cell{min-height:18mm!important}
+  body.print-student .cin{align-items:center!important}
+  body.print-student .srow{justify-content:center!important}
+  body.print-student .sname{text-align:center!important;font-size:17px!important}
 }
 #modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
   z-index:200;align-items:center;justify-content:center}
@@ -395,6 +435,64 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
 .mbdel{background:#ffebee;border-color:#ffcdd2;color:#c62828}
 .mbdel:hover{background:#ffcdd2}
 .mbcancel{background:#f5f6f8;border-color:var(--border);color:var(--muted)}
+/* ─── 起動画面オーバーレイ ──────────────────────────────────── */
+#startup-overlay{display:none;position:fixed;inset:0;z-index:300;
+  background:linear-gradient(140deg,#1a4a8a 0%,#1a6fc4 100%);
+  align-items:center;justify-content:center}
+#startup-overlay.on{display:flex}
+#startup-card{background:#fff;border-radius:16px;padding:44px 52px;
+  box-shadow:0 16px 48px rgba(0,0,0,.35);text-align:center;
+  max-width:440px;width:90%}
+#startup-card h2{font-size:20px;font-weight:700;color:var(--blue);margin-bottom:6px}
+#startup-card .startup-sub{font-size:12px;color:var(--muted);margin-bottom:32px;line-height:1.6}
+.startup-btn{display:flex;align-items:center;gap:12px;width:100%;padding:15px 20px;
+  border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+  border:none;margin-bottom:12px;transition:all .15s;text-align:left}
+.startup-btn:last-child{margin-bottom:0}
+.startup-btn-icon{font-size:20px;flex-shrink:0}
+.startup-btn-text{display:flex;flex-direction:column;gap:2px}
+.startup-btn-text small{font-size:10px;font-weight:400;opacity:.75}
+.startup-btn-load{background:var(--blue);color:#fff}
+.startup-btn-load:hover{background:#155fa0}
+.startup-btn-new{background:#f0f4f9;color:var(--text);border:1.5px solid var(--border)}
+.startup-btn-new:hover{background:#e0e8f5;border-color:var(--blue);color:var(--blue)}
+/* ─── 必須項目セットアップモーダル ──────────────────────────── */
+#setup-overlay{display:none;position:fixed;inset:0;z-index:310;
+  background:rgba(0,0,0,.6);align-items:center;justify-content:center}
+#setup-overlay.on{display:flex}
+#setup-card{background:#fff;border-radius:16px;padding:36px 44px;
+  box-shadow:0 16px 48px rgba(0,0,0,.4);max-width:480px;width:92%;
+  max-height:88vh;overflow-y:auto}
+#setup-card h2{font-size:17px;font-weight:700;color:var(--blue);margin-bottom:5px}
+.setup-sub{font-size:12px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+.setup-sec{margin-bottom:18px}
+.setup-lbl{display:block;font-size:11px;font-weight:700;color:var(--muted);
+  letter-spacing:.05em;margin-bottom:7px;text-transform:uppercase}
+.setup-lbl small{font-size:10px;font-weight:400;color:#e65100;
+  margin-left:5px;text-transform:none;letter-spacing:0}
+.setup-mode-btns{display:flex;gap:8px;flex-wrap:wrap}
+.setup-mode-btn{padding:8px 18px;border-radius:6px;border:2px solid var(--border);
+  background:#fff;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:all .12s}
+.setup-mode-btn.on{border-color:var(--blue);background:var(--blue-lt);color:var(--blue)}
+.setup-mode-btn:hover:not(.on){border-color:var(--blue);color:var(--blue)}
+.setup-locked-val{font-size:13px;font-weight:700;color:var(--blue);
+  background:var(--blue-lt);padding:5px 12px;border-radius:6px;display:inline-block}
+.setup-grade-row{display:flex;gap:10px;align-items:center}
+.setup-sel{padding:7px 10px;border:1.5px solid var(--border);
+  border-radius:6px;font-size:13px;font-family:inherit;color:var(--text)}
+.setup-sel:focus{outline:none;border-color:var(--blue)}
+.setup-inp{width:100%;padding:8px 12px;border:1.5px solid var(--border);
+  border-radius:6px;font-size:13px;font-family:inherit;color:var(--text)}
+.setup-inp:focus{outline:none;border-color:var(--blue)}
+.setup-lock-note{font-size:11px;color:var(--muted);margin-top:8px;
+  padding:5px 10px;background:#f8f9fc;border-radius:4px;
+  border-left:3px solid var(--border);line-height:1.55}
+#setup-ok{width:100%;padding:13px;background:#ccc;color:#fff;border:none;
+  border-radius:8px;font-size:14px;font-weight:700;cursor:not-allowed;
+  font-family:inherit;margin-top:8px;transition:background .2s}
+#setup-ok.ready{background:var(--blue);cursor:pointer}
+#setup-ok.ready:hover{background:#155fa0}
 </style>
 </head>
 <body>
@@ -407,28 +505,42 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <span class="sep" style="opacity:.25">|</span>
   <button class="hd-btn" id="btn-open-file">📂 週案データを開く</button>
   <button class="hd-btn accent" id="btn-save-file">💾 週案データを保存</button>
-  <button class="hd-btn" id="btn-print">🖨 印刷（PDF）</button>
-  <button class="hd-btn" id="btn-print-student">👧 配布用印刷</button>
-  <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:rgba(255,255,255,.85);white-space:nowrap;cursor:pointer">
-    <input type="checkbox" id="chk-hira" style="accent-color:#fff;width:12px;height:12px"> ひらがな
-  </label>
-  <button class="hd-btn" id="btn-excel">📊 Excel出力</button>
+  <button class="hd-btn" id="btn-exit" style="border-color:rgba(255,255,255,.5)">✕ 終了</button>
+  <span class="sep" style="opacity:.25">|</span>
+  <div id="week-nav-btns" style="display:none;align-items:center;gap:4px">
+    <button class="hd-btn" id="btn-prev-week">◀ 前週</button>
+    <button class="hd-btn accent" id="btn-today">今週</button>
+    <button class="hd-btn" id="btn-next-week">翌週 ▶</button>
+  </div>
+
   <span id="hd-saved">保存済み ✓</span>
   <span id="hd-source" style="font-size:10px;opacity:.65;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis" title=""></span>
-  <span id="hd-json-status" title="最終JSONファイル保存日時"></span>
+  <span id="hd-json-status"></span>
   <span id="hd-today" style="margin-left:auto"></span>
 </div>
-<div id="json-banner">
-  ⚠️ データファイルへの保存がありません。ブラウザのデータが消えると週案データも失われます。
-  <button id="json-banner-save">今すぐ保存</button>
-  <button id="json-banner-close" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);margin-left:6px">後で</button>
+<div id="mismatch-banner" style="display:none">
+  <span id="mismatch-banner-msg"></span>
+  <button class="mb-reload" id="mb-reload">最終保存ファイルを再読込</button>
+  <button class="mb-continue" id="mb-continue">この状態で続ける</button>
 </div>
-<div id="setup-banner" style="display:none;position:fixed;top:46px;left:0;right:0;z-index:151;
-  background:#e65100;color:#fff;font-size:12px;font-weight:700;
-  padding:7px 16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)">
-  <span id="setup-banner-msg">⚠️ 未入力の必須項目があります。設定してから操作を開始してください。</span>
-  <button id="setup-banner-go" style="margin-left:14px;padding:3px 12px;background:#fff;color:#e65100;
-    border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">設定を開く</button>
+<div id="setup-overlay">
+  <div id="setup-card">
+    <h2>📋 基本情報の設定</h2>
+    <p class="setup-sub">週案を開始するために、以下の情報を入力してください。</p>
+    <div id="setup-body"></div>
+    <button id="setup-ok">OK　→　週案を開始する</button>
+    <div id="setup-save-msg" style="display:none;margin-top:10px;padding:9px 12px;border-radius:6px;
+      font-size:12px;background:#fff3e0;color:#e65100;border:1px solid #ffcc80;line-height:1.6">
+      <div id="setup-save-msg-text"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="setup-save-retry" style="padding:5px 12px;background:#e65100;color:#fff;border:none;
+          border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600">再試行</button>
+      </div>
+    </div>
+    <button id="setup-cancel" style="display:block;margin-top:12px;width:100%;padding:9px;
+      background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;
+      font-family:inherit">← 起動画面に戻る</button>
+  </div>
 </div>
 
 <div id="sembar">
@@ -456,6 +568,15 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
       <div class="pat-menu" id="pload-menu"></div>
     </div>
   </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0">
+    <span style="color:var(--border);margin:0 2px">|</span>
+    <button class="pat-btn" id="btn-print">🖋 週案印刷</button>
+    <button class="pat-btn" id="btn-print-student">✏️ 児童用時間割印刷</button>
+    <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text);white-space:nowrap;cursor:pointer;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:#fff">
+      <input type="checkbox" id="chk-hira" style="accent-color:var(--blue);width:12px;height:12px"> ひらがな
+    </label>
+    <button class="pat-btn" id="btn-excel">📊 レポート出力（Excel）</button>
+  </div>
 </div>
 
 <div id="main">
@@ -464,6 +585,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
       <button class="ctab" data-ct="slots">🕐 時程設定</button>
       <button class="ctab" data-ct="koury">🏫 学級・交流設定</button>
       <button class="ctab" data-ct="subjects">📚 教科・時数設定</button>
+      <button class="ctab" data-ct="schedule">📅 行事予定</button>
     </div>
     <div id="cfg-body"></div>
   </div>
@@ -506,6 +628,27 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   </div>
 </div>
 
+<div id="startup-overlay">
+  <div id="startup-card">
+    <h2>📋 週案管理 RC</h2>
+    <p class="startup-sub">開始するには以下を選択してください</p>
+    <button class="startup-btn startup-btn-load" id="startup-load">
+      <span class="startup-btn-icon">📂</span>
+      <span class="startup-btn-text">
+        週案データを読み込む
+        <small>保存済みのJSONファイルを開きます</small>
+      </span>
+    </button>
+    <button class="startup-btn startup-btn-new" id="startup-new">
+      <span class="startup-btn-icon">✏️</span>
+      <span class="startup-btn-text">
+        週案を新規作成する
+        <small>基本情報を入力して新規作成します</small>
+      </span>
+    </button>
+  </div>
+</div>
+
 <div id="modal-bg">
   <div class="modal" id="modal">
     <div class="mtitle" id="mtitle">授業を入力</div>
@@ -515,8 +658,11 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
 
 <script>
 // ─── CONSTANTS ───────────────────────────────────────────────────
-const CHILD_COLORS=['#e53935','#8e24aa','#1e88e5','#00897b','#43a047','#fb8c00','#e91e63','#795548','#3949ab','#00bcd4'];
-const CHILD_IDS='ABCDEFGHIJ'.split('');
+const CHILD_COLORS=['#e53935','#8e24aa','#1e88e5','#00897b','#43a047','#fb8c00','#e91e63','#795548','#3949ab','#00bcd4',
+  '#00acc1','#7cb342','#f4511e','#6d4c41','#546e7a','#d81b60','#039be5','#c0ca33','#8d6e63','#26a69a',
+  '#5c6bc0','#ffa726','#66bb6a','#ab47bc','#ec407a','#42a5f5'];
+const CHILD_IDS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const MAX_CHILDREN=26;
 const SEMS={
   '1':{label:'1学期',months:[4,5,6,7,8],color:'#1a6fc4',cls:'s1'},
   '2':{label:'2学期',months:[9,10,11,12],color:'#2e7d32',cls:'s2'},
@@ -595,7 +741,9 @@ const HIRA_UI={
   '朝モ':'あさも','昼モ':'ひるも','終モ':'おわりも','業間':'ぎょうかん',
   '1時間目':'1じかんめ','2時間目':'2じかんめ','3時間目':'3じかんめ',
   '4時間目':'4じかんめ','5時間目':'5じかんめ','6時間目':'6じかんめ',
-  '朝':'あさ','昼休み':'ひるやすみ','下校':'げこう','宿題・連絡':'しゅくだい',
+  '朝':'あさ','昼休み':'ひるやすみ','下校':'げこう','宿題':'しゅくだい','連絡':'れんらく',
+  '週めあて':'しゅうめあて','おしらせ':'おしらせ',
+  '校内メモ1':'こうないめも1','校内メモ2':'こうないめも2','校内メモ3':'こうないめも3','校内メモ4':'こうないめも4','校内メモ5':'こうないめも5',
   'メモ1':'めも1','メモ2':'めも2','メモ3':'めも3','メモ4':'めも4','メモ5':'めも5',
   '時間':'じかん' // ヘッダー左上セル
 };
@@ -620,15 +768,18 @@ function defSlots(){
   ];
 }
 function defKoury(){
-  return {mode:'normal',children:CHILD_IDS.map((id,i)=>({id,color:CHILD_COLORS[i],active:false,tenshutsu:false,grade:null,classNum:null,subjects:[]}))};
+  return {mode:'normal',children:CHILD_IDS.slice(0,10).map((id,i)=>({id,color:CHILD_COLORS[i],active:false,tenshutsu:false,grade:null,classNum:null,subjects:[]}))};
 }
 function defPatterns(){return [{name:'',cells:{}},{name:'',cells:{}},{name:'',cells:{}},{name:'',cells:{}},{name:'',cells:{}}];}
 
 // ─── STATE ───────────────────────────────────────────────────────
 let S={year:curAcYear(),grade:3,classNum:1,gradeSet:false,cls:'',teacher:'',yearTotalWeeks:35,showSat:true,showSun:false,
+       schedule:{},
        subjects:defSubjects(),slots:defSlots(),patterns:defPatterns(),koury:defKoury()};
 let db={};
 let fileHandle=null; // File System Access API ハンドル（セッション中のみ保持）
+let appStarted=false; // 起動画面を抜けたらtrue
+let hasUnsavedChanges=false; // 最後のファイル保存以降に変更があればtrue
 let curView='sem',curSem='1',curMonth=4,curWeek=1,curCfgTab='slots',jisuuTab='week',jisuuSubTab='count',curSumTab='1';
 // ─── 【1-1】モーダル状態を mstate に一元管理 ─────────────────────
 let mstate={slotId:null,dk:null,m:null,w:null,
@@ -649,33 +800,11 @@ function migrateSlotLabels(){
     if(map[sl.id]&&sl.label===old[sl.id]) sl.label=map[sl.id];
   });
 }
-function load(){
-  try{const d=localStorage.getItem('sw4_db');if(d)db=JSON.parse(d);}catch(e){}
-  try{
-    const s=localStorage.getItem('sw4_cfg');
-    if(s){
-      const p=JSON.parse(s);
-      const hadGrade=p.grade!=null; // 旧v4 JSONにはgradeフィールドなし
-      const keys=['year','grade','classNum','gradeSet','cls','teacher','yearTotalWeeks','showSat','showSun','subjects','slots','patterns','koury'];
-      keys.forEach(k=>{if(p[k]!=null)S[k]=p[k];});
-      if(!hadGrade) S.gradeSet=false; // gradeがなかった旧データは未設定扱い
-    }
-  }catch(e){}
-  migrateSlotLabels();
-  migrateSubjectTargets();
-  if(S.grade==null) S.grade=3;
-  if(S.classNum==null) S.classNum=1;
-  if(S.gradeSet==null) S.gradeSet=false;
-  S.koury.children.forEach(ch=>{
-    if(ch.tenshutsu==null) ch.tenshutsu=false;
-    if(ch.grade===undefined) ch.grade=null;
-    if(ch.classNum===undefined) ch.classNum=null;
-  });
-}
+// load() は廃止（STEP1-A）。データはJSONファイルからのみ読み込む。
 function save(){
-  localStorage.setItem('sw4_db',JSON.stringify(db));
-  localStorage.setItem('sw4_cfg',JSON.stringify(S));
+  if(appStarted) hasUnsavedChanges=true;
   showSavedIndicator();
+  updateSaveStatus();
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────
@@ -707,7 +836,7 @@ function setWDate(m,w,v){
 // メモ行日別化：asa/gyoukan/lunch/leave/hw は曜日ごとのオブジェクト
 // notes（週メモ1〜5）は週単位の配列のまま維持
 function defDayObj(){return {sun:'',mon:'',tue:'',wed:'',thu:'',fri:'',sat:''};}
-function defWeekMemos(){return {asa:defDayObj(),gyoukan:defDayObj(),lunch:defDayObj(),leave:defDayObj(),hw:defDayObj(),notes:['','','','','']};}
+function defWeekMemos(){return {asa:defDayObj(),gyoukan:defDayObj(),lunch:defDayObj(),leave:defDayObj(),hw:defDayObj(),renraku:defDayObj(),weekly_aim:'',notice:'',notes:['','','','','']};}
 function getWeekMemos(m,w){
   const y=mYear(m);
   const raw=db[y]?.[m]?.[w]?._memos;
@@ -718,7 +847,9 @@ function getWeekMemos(m,w){
     const base=defDayObj();Object.keys(base).forEach(dk=>{base[dk]=v[dk]||'';});return base;
   }
   return {asa:toDayObj(raw.asa),gyoukan:toDayObj(raw.gyoukan),lunch:toDayObj(raw.lunch),
-          leave:toDayObj(raw.leave),hw:toDayObj(raw.hw),notes:raw.notes||['','','','','']};
+          leave:toDayObj(raw.leave),hw:toDayObj(raw.hw),renraku:toDayObj(raw.renraku),
+          weekly_aim:raw.weekly_aim||'',notice:raw.notice||'',
+          notes:raw.notes||['','','','','']};
 }
 function setWeekMemo(m,w,key,val,dk){
   const y=mYear(m);
@@ -727,6 +858,9 @@ function setWeekMemo(m,w,key,val,dk){
   if(key.startsWith('note_')){
     const idx=+key.split('_')[1];
     db[y][m][w]._memos.notes[idx]=val;
+  } else if(key==='weekly_aim'||key==='notice'){
+    // 週単位フィールド（日別でない）
+    db[y][m][w]._memos[key]=val;
   } else if(dk){
     // 日別メモ：旧string形式からのマイグレーションも考慮
     const cur=db[y][m][w]._memos[key];
@@ -804,37 +938,42 @@ function makeJsonData(){
 }
 function makeFileName(){
   const cls=S.cls||'クラス未設定';
-  return `${S.year}年度_${cls}_週案データ.sw4`;
+  return `${S.year}年度_${cls}_週案データ.json`;
 }
 // 常にエクスプローラを開いて保存（前回フォルダを記憶・初回はマイドキュメント）
-async function saveToFile(){
+// 保存処理の共通ロジック（エラーをそのまま投げる）
+async function _doSaveToFile(){
   const json=makeJsonData();
   const blob=new Blob([json],{type:'application/json'});
   if(window.showSaveFilePicker){
-    try{
-      const opts={
-        suggestedName:makeFileName(),
-        types:[{description:'週案データ (.sw4)',accept:{'application/x-shuan':['.sw4']}},
-               {description:'旧形式 JSON (.json)',accept:{'application/json':['.json']}}]
-      };
-      opts.startIn=fileHandle||'documents'; // 前回フォルダ or マイドキュメント
-      fileHandle=await window.showSaveFilePicker(opts); // 常にピッカーを開く
-      const writable=await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      recordJsonSave();
-      updateSourceNameDisplay();
-      showSavedIndicator('💾 保存完了');
-    }catch(e){
-      if(e.name!=='AbortError') alert('保存に失敗しました：'+e.message);
-    }
+    const opts={
+      suggestedName:makeFileName(),
+      types:[{description:'週案データ',accept:{'application/json':['.json']}}]
+    };
+    opts.startIn=fileHandle||'documents';
+    fileHandle=await window.showSaveFilePicker(opts); // 失敗・AbortErrorはそのまま投げる
+    const writable=await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    hasUnsavedChanges=false;
+    updateSourceNameDisplay();
+    showSavedIndicator('💾 保存完了');
+    updateSaveStatus();
   } else {
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;a.download=makeFileName();a.click();
     URL.revokeObjectURL(url);
-    recordJsonSave();
+    hasUnsavedChanges=false;
     showSavedIndicator('💾 ダウンロード完了');
+    updateSaveStatus();
+  }
+}
+async function saveToFile(){
+  try{
+    await _doSaveToFile();
+  }catch(e){
+    if(e.name!=='AbortError') alert('保存に失敗しました：'+e.message);
   }
 }
 async function saveAsNewFile(){
@@ -855,8 +994,7 @@ async function saveAndReload(){
 async function loadFromFile(){
   if(window.showOpenFilePicker){
     try{
-      const opts={types:[{description:'週案データ (.sw4)',accept:{'application/x-shuan':['.sw4']}},
-                         {description:'旧形式 JSON (.json)',accept:{'application/json':['.json']}}]};
+      const opts={types:[{description:'週案データ',accept:{'application/json':['.json']}}]};
       if(fileHandle) opts.startIn=fileHandle; // 前回と同じフォルダを最初に表示
       const [fh]=await window.showOpenFilePicker(opts);
       const file=await fh.getFile();
@@ -867,7 +1005,7 @@ async function loadFromFile(){
     }
   } else {
     const inp=document.createElement('input');
-    inp.type='file';inp.accept='.sw4,.json';
+    inp.type='file';inp.accept='.json';
     inp.onchange=async()=>{
       const file=inp.files[0];if(!file)return;
       const text=await file.text();
@@ -880,10 +1018,10 @@ function applyJsonData(text,fh){
   try{
     const parsed=JSON.parse(text);
     if(!parsed.cfg||!parsed.db) throw new Error('形式が正しくありません');
-    // 新フィールド（v4.1追加）をlocalStorageから引き継がないよう先にリセット
+    // フィールドを先にリセットしてからJSONを適用
     S.grade=3; S.classNum=1; S.gradeSet=false;
     const hadGrade=parsed.cfg.grade!=null;
-    const keys=['year','grade','classNum','gradeSet','cls','teacher','yearTotalWeeks','showSat','showSun','subjects','slots','patterns','koury'];
+    const keys=['year','grade','classNum','gradeSet','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','subjects','slots','patterns','koury'];
     keys.forEach(k=>{if(parsed.cfg[k]!=null)S[k]=parsed.cfg[k];});
     if(!hadGrade) S.gradeSet=false; // 旧v4 JSONはgradeなし → 未設定確定
     S.subjects.forEach(s=>{if(s.planStd==null)s.planStd=0;});
@@ -899,23 +1037,26 @@ function applyJsonData(text,fh){
     });
     db=parsed.db;
     fileHandle=fh; // 開いたファイルを保存先として保持
-    save(); // localStorageにも反映
-    // UI再描画
+    // ヘッダー共通更新
     document.getElementById('inp-class').value=S.cls||'';
     document.getElementById('inp-teacher').value=S.teacher||'';
     document.getElementById('inp-year').querySelectorAll('option').forEach(o=>{
       o.selected=(+o.value===S.year);
     });
-    const m=new Date().getMonth()+1;
-    curMonth=m;curWeek=validWeeksForMonth(m)[0]||1;curSem=semOf(m);
-    document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
-    const at=document.querySelector(`.stab[data-sem="${curSem}"]`);
-    if(at)at.classList.add('on');
-    showView('sem');setSem(curSem);
     showSavedIndicator('📂 読み込み完了');
     updateSourceNameDisplay();
-    updateRequiredFieldStyles();
-    checkSetupRequired(); // 学年未設定チェック
+    if(!appStarted){
+      // 起動時の読み込み → 必須項目チェック付きenterApp()へ
+      enterApp();
+    } else {
+      // アプリ内再読み込み（saveAndReload等）
+      const m=new Date().getMonth()+1;
+      curMonth=m;curWeek=validWeeksForMonth(m)[0]||1;curSem=semOf(m);
+      document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
+      const at=document.querySelector(`.stab[data-sem="${curSem}"]`);
+      if(at)at.classList.add('on');
+      showView('sem');setSem(curSem);
+    }
   }catch(e){
     alert('読み込みに失敗しました：'+e.message);
   }
@@ -935,103 +1076,94 @@ function showSavedIndicator(msg){
   el._t=setTimeout(()=>{el.style.display='none';el.textContent='保存済み ✓';},2000);
 }
 
-// ─── JSON保存ガイダンス ──────────────────────────────────────────
-// 最終JSONファイル保存日時をlocalStorageに記録
-const JSON_SAVE_KEY='sw4_lastJsonSave';
-function recordJsonSave(){
-  localStorage.setItem(JSON_SAVE_KEY,Date.now().toString());
-  updateJsonStatus();
-  hideBanner();
-}
-function getLastJsonSaveMs(){
-  const v=localStorage.getItem(JSON_SAVE_KEY);
-  return v?+v:null;
-}
-function updateJsonStatus(){
+// ─── 保存状態インジケーター ──────────────────────────────────────
+function updateSaveStatus(){
   const el=document.getElementById('hd-json-status');
   if(!el) return;
-  const last=getLastJsonSaveMs();
-  if(!last){
-    el.className='hd-json-status danger';
-    el.textContent='⚠ JSON未保存';
-    return;
+  if(!appStarted){el.style.display='none';return;}
+  el.style.display='';
+  if(hasUnsavedChanges){
+    el.className='unsaved';
+    el.textContent='⚠ 保存してください';
+  } else {
+    el.className='saved';
+    el.textContent='💾 保存済み';
   }
-  const diffMs=Date.now()-last;
-  const diffDays=Math.floor(diffMs/86400000);
-  const diffH=Math.floor(diffMs/3600000);
-  const diffM=Math.floor(diffMs/60000);
-  let label='';
-  if(diffM<1) label='JSON保存：たった今';
-  else if(diffH<1) label=`JSON保存：${diffM}分前`;
-  else if(diffDays<1) label=`JSON保存：${diffH}時間前`;
-  else label=`JSON保存：${diffDays}日前`;
-  if(diffDays>=7){el.className='hd-json-status danger';el.textContent='⚠ '+label;}
-  else if(diffDays>=3){el.className='hd-json-status warn';el.textContent='⚠ '+label;}
-  else{el.className='hd-json-status ok';el.textContent=label;}
-}
-function checkBannerOnStartup(){
-  const last=getLastJsonSaveMs();
-  if(!last){showBanner();}
-  else{
-    const diffDays=Math.floor((Date.now()-last)/86400000);
-    if(diffDays>=7) showBanner();
-  }
-}
-function showBanner(){
-  document.getElementById('json-banner').style.display='block';
-  updateBannerMargin();
-}
-function hideBanner(){
-  document.getElementById('json-banner').style.display='none';
-  updateBannerMargin();
-}
-function showSetupBanner(){
-  document.getElementById('setup-banner').style.display='block';
-  updateBannerMargin();
-}
-function hideSetupBanner(){
-  document.getElementById('setup-banner').style.display='none';
-  updateBannerMargin();
 }
 function updateBannerMargin(){
-  const jsonH=document.getElementById('json-banner').style.display!=='none'?36:0;
-  const setupH=document.getElementById('setup-banner').style.display!=='none'?36:0;
-  document.getElementById('sembar').style.marginTop=jsonH+setupH>0?(jsonH+setupH)+'px':'';
+  const mismatchH=document.getElementById('mismatch-banner').style.display!=='none'?36:0;
+  document.getElementById('sembar').style.marginTop=mismatchH>0?mismatchH+'px':'';
 }
 // 必須項目の未入力チェック（学年・表示名・担任名）
 function getMissingRequired(){
   const missing=[];
-  if(!S.gradeSet) missing.push('学年');
+  if(!S.gradeSet&&S.koury.mode!=='senka') missing.push('学年');
   if(!S.cls.trim()) missing.push('表示名（クラス名）');
   if(!S.teacher.trim()) missing.push('担任名');
   return missing;
 }
-// ヘッダー必須入力欄の警告スタイルを更新
-function updateRequiredFieldStyles(){
-  const clsInp=document.getElementById('inp-class');
-  const tchInp=document.getElementById('inp-teacher');
-  if(clsInp){
-    const warn=!S.cls.trim();
-    clsInp.style.background=warn?'rgba(255,100,0,.35)':'rgba(255,255,255,.18)';
-    clsInp.style.borderColor=warn?'#ffab40':'rgba(255,255,255,.3)';
-  }
-  if(tchInp){
-    const warn=!S.teacher.trim();
-    tchInp.style.background=warn?'rgba(255,100,0,.35)':'rgba(255,255,255,.18)';
-    tchInp.style.borderColor=warn?'#ffab40':'rgba(255,255,255,.3)';
-  }
-}
-function checkSetupRequired(){
-  const missing=getMissingRequired();
-  if(missing.length>0) enforceSetupIfNeeded();
-  else hideSetupBanner();
-}
-// 定期的にステータスを更新（5分ごと）
-function startJsonStatusTimer(){
-  updateJsonStatus();
-  setInterval(updateJsonStatus,300000);
-}
+// ─── 教科齟齬バナー ─────────────────────────────────────────────
+let mismatchActive=false; // true=強表示（保存ブロック）, false=dimmedか非表示
 
+function checkSubjectMismatch(){
+  const registeredLabels=new Set(S.subjects.map(s=>s.label));
+  const unknown=new Set();
+  for(const y of Object.values(db)){
+    for(const m of Object.values(y)){
+      for(const w of Object.values(m)){
+        for(const [key,dayMap] of Object.entries(w)){
+          if(key.startsWith('_')) continue;
+          for(const c of Object.values(dayMap)){
+            if(c.s1&&!registeredLabels.has(c.s1)) unknown.add(c.s1);
+            if(c.s2&&!registeredLabels.has(c.s2)) unknown.add(c.s2);
+          }
+        }
+      }
+    }
+  }
+  if(unknown.size>0){
+    showMismatchBanner([...unknown]);
+  } else {
+    hideMismatchBanner();
+  }
+}
+function showMismatchBanner(unknownSubjs){
+  mismatchActive=true;
+  const banner=document.getElementById('mismatch-banner');
+  const msg=document.getElementById('mismatch-banner-msg');
+  msg.textContent=`⚠️ 週案データに未登録教科があります（${unknownSubjs.join('・')}）。このままでは保存できません。`;
+  banner.style.display='block';
+  banner.classList.remove('dimmed');
+  updateBannerMargin();
+  updateSaveButtonState();
+}
+function dimMismatchBanner(){
+  mismatchActive=false;
+  const banner=document.getElementById('mismatch-banner');
+  banner.classList.add('dimmed');
+  document.getElementById('mismatch-banner-msg').textContent=
+    '⚠️ 週案データに未登録教科が残っています（集計が不完全な可能性があります）';
+  updateSaveButtonState();
+}
+function hideMismatchBanner(){
+  mismatchActive=false;
+  document.getElementById('mismatch-banner').style.display='none';
+  updateBannerMargin();
+  updateSaveButtonState();
+}
+function updateSaveButtonState(){
+  const btn=document.getElementById('btn-save-file');
+  if(!btn) return;
+  if(mismatchActive){
+    btn.disabled=true;
+    btn.style.opacity='.4';
+    btn.title='週案データと教科設定の齟齬を解消してから保存してください';
+  } else {
+    btn.disabled=false;
+    btn.style.opacity='';
+    btn.title='';
+  }
+}
 // 月曜日付の計算（日曜アンカー方式）
 // 「その月の1日を含む週の日曜日」を第1週の起点とし、
 // 第N週の月曜 = 起点日曜 + (N-1)*7 + 1
@@ -1081,15 +1213,17 @@ function calcActual(pairs){
         for(const dk of DKEYS){
           const c=getCell(m,w,sl.id,dk);
           const has2=!!c.s2;
+          const r1=has2?(c.ratio1??0.5):1; // 教科1の比率（デフォルト0.5）
+          const r2=has2?Math.round((1-r1)*100)/100:0;
           if(c.s1){
             const t=toTarget(c.s1);if(!res[t])res[t]={full:0,half:0,mod:0,tot:0};
             if(isMod){res[t].mod+=1;res[t].tot+=unitMod;}
-            else if(has2){res[t].half+=1;res[t].tot+=0.5;}
+            else if(has2){res[t].half+=1;res[t].tot+=r1;}
             else{res[t].full+=1;res[t].tot+=1;}
           }
           if(c.s2&&!isMod){
             const t=toTarget(c.s2);if(!res[t])res[t]={full:0,half:0,mod:0,tot:0};
-            res[t].half+=1;res[t].tot+=0.5;
+            res[t].half+=1;res[t].tot+=r2;
           }
         }
       }
@@ -1152,11 +1286,15 @@ function rateCls(r){
 function renderCfgSubjects(){
   const hasMod=hasActiveMod();
   const modColHd=hasMod?`<th>うち<br>モジュール</th><th>うちフル<br><small style="font-weight:400">(自動)</small></th>`:'' ;
-  const classType=S.koury.mode==='normal'?'normal':'tokushi';
+  const isSenka=S.koury.mode==='senka';
+  const gradeLabel=isSenka?'専科':`${S.grade}年`;
   document.getElementById('cfg-body').innerHTML=`
   <div class="cfg-sec">
     <h3>教科・選択肢と時数計画</h3>
-    <div class="cfg-note">「対応先（集計行）」に同じ名称を設定すると、時数が合算されます（例：図書・書写 → 国語）。<br>標準時数：文部科学省の年間標準授業時数。配当時数：学校・学年で定めた年間計画時数。${hasMod?'うちフルは配当時数－モジュールを自動計算します。':'モジュールスロットが有効のとき、うちモジュール／フル列が表示されます。'}<br><span style="color:#c62828">※ 現学年（${S.grade}年）では非対象の教科は薄く表示されます。</span></div>
+    <div class="cfg-note">${isSenka
+      ?'専科モード：教科名は「○年△組国語」のように学級・教科単位で入力してください。対応先（集計行）は自動で同じ名前になりますが、変更も可能です。同じ対応先を設定すると時数が合算されます。'
+      :`「対応先（集計行）」に同じ名称を設定すると、時数が合算されます（例：図書・書写 → 国語）。<br>標準時数：文部科学省の年間標準授業時数。配当時数：学校・学年で定めた年間計画時数。${hasMod?'うちフルは配当時数－モジュールを自動計算します。':'モジュールスロットが有効のとき、うちモジュール／フル列が表示されます。'}<br><span style="color:#c62828">※ 現学年（${gradeLabel}）では非対象の教科は薄く表示されます。</span>`
+    }</div>
     <table class="cfg-tbl">
       <thead><tr>
         <th>選択肢（表示名）</th><th>対応先（集計行）</th>
@@ -1164,7 +1302,7 @@ function renderCfgSubjects(){
       </tr></thead>
       <tbody id="stbody"></tbody>
     </table>
-    <button class="btn-add" id="btn-add-s">＋ 教科を追加</button>
+    <button class="btn-add" id="btn-add-s">＋ 教科を追加${isSenka?' （例：3年1組国語）':''}</button>
   </div>
   <div class="cfg-sec">
     <h3>年間総週数（按分計算用）</h3>
@@ -1172,18 +1310,14 @@ function renderCfgSubjects(){
       年間総週数：<input type="number" id="inp-wks" value="${S.yearTotalWeeks||35}" min="1" max="52"
         style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px"> 週
     </label>
-  </div>
-  <div class="cfg-actions">
-    <button class="btn-save" id="btn-save-s">設定を保存</button>
   </div>`;
   renderSubjTable();
   document.getElementById('btn-add-s').onclick=()=>{
-    S.subjects.push({id:'s'+Date.now(),label:'新教科',target:'新教科',planStd:0,planTotal:0,planFull:0,planMod:0});
-    renderSubjTable();
+    const label=isSenka?'':'新教科';
+    S.subjects.push({id:'s'+Date.now(),label,target:label,planStd:0,planTotal:0,planFull:0,planMod:0});
+    save();renderSubjTable();
   };
-  document.getElementById('btn-save-s').onclick=()=>{
-    S.yearTotalWeeks=+document.getElementById('inp-wks').value||35;save();alert('保存しました');
-  };
+  document.getElementById('inp-wks').oninput=e=>{S.yearTotalWeeks=+e.target.value||35;save();};
 }
 function renderSubjTable(){
   const tb=document.getElementById('stbody');if(!tb)return;
@@ -1202,8 +1336,15 @@ function renderSubjTable(){
       <td><input type="number" class="sj-pm" value="${s.planMod||0}" min="0" style="width:50px"></td>
       <td><input type="number" class="sj-pf" value="${autoFull}" readonly
           style="width:50px;background:#f5f5f5;color:var(--muted);cursor:default"></td>`:'' ;
+    const isSenka=S.koury.mode==='senka';
+    const senkaWarn=isSenka&&s.label&&!_isSenkaLabelValid(s.label);
+    const lblStyle=`width:85px${senkaWarn?';border-color:#e65100;background:#fff8e1':''}`;
+    const lblTitle=senkaWarn?'title="形式が正しくありません。「X年Y組教科名」または「研修」「授業準備」で入力してください"':'';
     rows+=`<tr data-i="${i}" style="${rowStyle}">
-      <td><input type="text" class="sj-lbl" value="${s.label}" style="width:85px"></td>
+      <td>
+        <input type="text" class="sj-lbl" value="${s.label}" placeholder="${isSenka?'例：3年1組国語':''}" style="${lblStyle}" ${lblTitle}>
+        ${senkaWarn?'<span title="形式エラー" style="color:#e65100;font-size:11px">⚠</span>':''}
+      </td>
       <td>
         <select class="sj-tgt">${topts}</select>
         <input type="text" class="sj-tnew" placeholder="新規対応先名" style="display:none;width:80px;margin-top:3px">
@@ -1252,30 +1393,182 @@ function renderSubjTable(){
     const lbl=tr.querySelector('.sj-lbl'),tgt=tr.querySelector('.sj-tgt'),tnew=tr.querySelector('.sj-tnew');
     const pt=tr.querySelector('.sj-pt'),pm=tr.querySelector('.sj-pm'),ps=tr.querySelector('.sj-ps');
     const pfDisp=tr.querySelector('.sj-pf'); // readonly表示用
-    lbl.oninput=()=>S.subjects[i].label=lbl.value;
-    tgt.onchange=()=>{if(tgt.value==='__new__'){tnew.style.display='block';tnew.focus();}else{tnew.style.display='none';S.subjects[i].target=tgt.value;}};
-    tnew.oninput=()=>S.subjects[i].target=tnew.value;
-    ps.oninput=()=>S.subjects[i].planStd=+ps.value||0;
-    // ⑤ 配当時数変更時にplanFull自動更新
+    lbl.oninput=()=>{
+      // 入力中は一時保持のみ（確定はonblurで行う）
+    };
+    lbl.onblur=()=>{
+      const newLabel=lbl.value.trim();
+      const oldLabel=S.subjects[i].label;
+      if(!newLabel||newLabel===oldLabel){
+        lbl.value=oldLabel; // 空や未変更はリセット
+        renderSubjTable();
+        return;
+      }
+      // dbに旧表示名が存在するか検索（旧ラベルが空の場合はスキップ）
+      const used=oldLabel?_labelUsedInDb(oldLabel):false;
+      if(used){
+        const ok=confirm(
+          `「${oldLabel}」は既に週案データに入力されています。\n`+
+          `週案データ内の「${oldLabel}」を「${newLabel}」に置き換えますか？\n\n`+
+          `※「キャンセル」を押すと表示名を元に戻します。`
+        );
+        if(!ok){
+          lbl.value=oldLabel;
+          renderSubjTable();
+          return;
+        }
+        _replaceSubjectLabelInDb(oldLabel,newLabel);
+      }
+      S.subjects[i].label=newLabel;
+      if(S.koury.mode==='senka') S.subjects[i].target=newLabel;
+      save();
+      checkSubjectMismatch();
+      renderSubjTable();
+    };
+    tgt.onchange=()=>{
+      if(tgt.value==='__new__'){tnew.style.display='block';tnew.focus();}
+      else{tnew.style.display='none';S.subjects[i].target=tgt.value;save();}
+    };
+    tnew.oninput=()=>{S.subjects[i].target=tnew.value;save();};
+    tnew.onblur=()=>{if(tnew.value.trim()) renderSubjTable();};
+    ps.oninput=()=>{S.subjects[i].planStd=+ps.value||0;save();};
     pt.oninput=()=>{
       S.subjects[i].planTotal=+pt.value||0;
       S.subjects[i].planFull=Math.max(0,S.subjects[i].planTotal-S.subjects[i].planMod);
       if(pfDisp) pfDisp.value=S.subjects[i].planFull;
+      save();
     };
     if(pm){
       pm.oninput=()=>{
         S.subjects[i].planMod=+pm.value||0;
         S.subjects[i].planFull=Math.max(0,S.subjects[i].planTotal-S.subjects[i].planMod);
         if(pfDisp) pfDisp.value=S.subjects[i].planFull;
+        save();
       };
     }
-    tr.querySelector('.rbtn-up')?.addEventListener('click',()=>{const t=S.subjects[i];S.subjects[i]=S.subjects[i-1];S.subjects[i-1]=t;renderSubjTable();});
-    tr.querySelector('.rbtn-dn')?.addEventListener('click',()=>{const t=S.subjects[i];S.subjects[i]=S.subjects[i+1];S.subjects[i+1]=t;renderSubjTable();});
-    tr.querySelector('.rbtn-del')?.addEventListener('click',()=>{if(S.subjects.length>1){S.subjects.splice(i,1);renderSubjTable();}});
+    tr.querySelector('.rbtn-up')?.addEventListener('click',()=>{const t=S.subjects[i];S.subjects[i]=S.subjects[i-1];S.subjects[i-1]=t;save();renderSubjTable();});
+    tr.querySelector('.rbtn-dn')?.addEventListener('click',()=>{const t=S.subjects[i];S.subjects[i]=S.subjects[i+1];S.subjects[i+1]=t;save();renderSubjTable();});
+    tr.querySelector('.rbtn-del')?.addEventListener('click',()=>{
+      const label=S.subjects[i].label;
+      const count=label?_countSubjectInDb(label):0;
+      if(count>0){
+        const ok=confirm(
+          `「${label}」は週案データに ${count} コマ入力されています。\n`+
+          `教科リストから削除すると同時に、週案データからも削除します。\n\n`+
+          `・1教科コマ → セルがクリアされます\n`+
+          `・2教科コマの片方 → 残った教科の1コマとして引き継がれます\n\n`+
+          `削除しますか？`
+        );
+        if(!ok) return;
+        _removeSubjectFromDb(label);
+      }
+      S.subjects.splice(i,1);
+      save();
+      checkSubjectMismatch();
+      renderSubjTable();
+    });
   });
 }
 
 // ─── SETTINGS: SLOTS ─────────────────────────────────────────────
+// 教科表示名がdbに存在するか判定
+function _labelUsedInDb(label){
+  for(const y of Object.values(db)){
+    for(const m of Object.values(y)){
+      for(const w of Object.values(m)){
+        for(const[key,dayMap]of Object.entries(w)){
+          if(key.startsWith('_')) continue;
+          for(const c of Object.values(dayMap)){
+            if(c.s1===label||c.s2===label) return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+// db内の教科表示名を一括置換（s1・s2両方）
+function _replaceSubjectLabelInDb(oldLabel,newLabel){
+  for(const y of Object.values(db)){
+    for(const m of Object.values(y)){
+      for(const w of Object.values(m)){
+        for(const[key,dayMap]of Object.entries(w)){
+          if(key.startsWith('_')) continue;
+          for(const c of Object.values(dayMap)){
+            if(c.s1===oldLabel) c.s1=newLabel;
+            if(c.s2===oldLabel) c.s2=newLabel;
+          }
+        }
+      }
+    }
+  }
+}
+// db内で教科表示名が使われているコマ数を返す
+function _countSubjectInDb(label){
+  let count=0;
+  for(const y of Object.values(db)){
+    for(const m of Object.values(y)){
+      for(const w of Object.values(m)){
+        for(const[key,dayMap]of Object.entries(w)){
+          if(key.startsWith('_')) continue;
+          for(const c of Object.values(dayMap)){
+            if(c.s1===label||c.s2===label) count++;
+          }
+        }
+      }
+    }
+  }
+  return count;
+}
+// db内から教科表示名を削除（3パターン対応）
+function _removeSubjectFromDb(label){
+  for(const y of Object.values(db)){
+    for(const m of Object.values(y)){
+      for(const w of Object.values(m)){
+        for(const[key,dayMap]of Object.entries(w)){
+          if(key.startsWith('_')) continue;
+          for(const c of Object.values(dayMap)){
+            if(c.s1===label&&!c.s2){
+              // パターン①：1教科コマ → セルを丸ごとクリア
+              c.s1='';c.m1='';c.ratio1=null;c.koury1=null;
+            } else if(c.s2===label){
+              // パターン②：s2が削除対象 → s2のみクリア
+              c.s2='';c.m2='';c.ratio1=null;c.koury2=null;
+            } else if(c.s1===label&&c.s2){
+              // パターン③：s1が削除対象・s2あり → s2をs1に繰り上げ
+              c.s1=c.s2;c.m1=c.m2;c.koury1=c.koury2;
+              c.s2='';c.m2='';c.ratio1=null;c.koury2=null;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+// ─── 専科モード：ラベルバリデーション・パース ─────────────────────
+// 有効な専科ラベル：「X年Y組教科名」または特別キーワード
+const SENKA_SPECIAL=['研修','授業準備'];
+function _isSenkaLabelValid(label){
+  if(!label) return false;
+  if(SENKA_SPECIAL.includes(label)) return true;
+  return /^.+組.+$/.test(label); // 組の前に何か、後に教科名
+}
+// 「3年1組国語」「A組体育」→ {gakuban:'3年1組', kyoka:'国語'}
+// 「研修」→ {gakuban:'', kyoka:'研修'}
+function _parseSenkaLabel(label){
+  const m=label.match(/^(.+組)(.+)$/);
+  if(m) return{gakuban:m[1],kyoka:m[2]};
+  return{gakuban:'',kyoka:label};
+}
+// 月のある日付(day)から (week, dk) を返す
+function _findWeekDkForDay(month,day){
+  const year=month>=4?S.year:S.year+1;
+  const dt=new Date(year,month-1,day);
+  const dk=DKEYS[dt.getDay()];
+  const iso=localDateStr(dt);
+  const loc=findCellLocationForDate(iso,dk);
+  return loc?{week:loc.week,dk}:null;
+}
 function renderCfgSlots(){
   let srows='';
   S.slots.forEach((sl,i)=>{
@@ -1318,43 +1611,55 @@ function renderCfgSlots(){
     <h3>時間割パターン（5つまで）</h3>
     <table class="cfg-tbl"><thead><tr><th>番号</th><th>名前</th><th>状態</th></tr></thead>
     <tbody>${prows}</tbody></table>
-  </div>
-  <div class="cfg-actions"><button class="btn-save" id="btn-save-sl">設定を保存</button></div>`;
-  document.querySelectorAll('.sl-n').forEach(inp=>inp.oninput=()=>S.slots[+inp.dataset.i].modN=+inp.value||3);
-  document.querySelectorAll('.sl-act').forEach(cb=>cb.onchange=()=>S.slots[+cb.dataset.i].active=cb.checked);
-  document.querySelectorAll('.pat-nm').forEach(inp=>inp.oninput=()=>S.patterns[+inp.dataset.i].name=inp.value);
-  document.getElementById('btn-save-sl').onclick=()=>{save();alert('保存しました');};
+  </div>`;
+  document.querySelectorAll('.sl-n').forEach(inp=>inp.oninput=()=>{S.slots[+inp.dataset.i].modN=+inp.value||3;save();});
+  document.querySelectorAll('.sl-act').forEach(cb=>cb.onchange=()=>{S.slots[+cb.dataset.i].active=cb.checked;save();});
+  document.querySelectorAll('.pat-nm').forEach(inp=>inp.oninput=()=>{S.patterns[+inp.dataset.i].name=inp.value;save();});
 }
 
 // ─── SETTINGS: KOURY ─────────────────────────────────────────────
 function renderCfgKoury(){
   const mode=S.koury.mode;
   const isNormal=mode==='normal';
+  const isSenka=mode==='senka';
   const subjs=S.subjects.map(s=>s.label);
   const gradeNotSet=!S.gradeSet;
-  const gradeBg=gradeNotSet?'background:#ffebee;border-color:#e57373':'';
-  const gradeOpts=(gradeNotSet?'<option value="" selected>── 学年を選択してください ──</option>':'')+
-    [1,2,3,4,5,6].map(g=>`<option value="${g}" ${(!gradeNotSet&&g===S.grade)?'selected':''}>${g}年</option>`).join('');
+  // 専科時：学年・クラス入力欄は非アクティブ
+  const gradeBg=(!isSenka&&gradeNotSet)?'background:#ffebee;border-color:#e57373':'';
+  const gradeOpts=isSenka
+    ?'<option value="senka" selected>専科</option>'
+    :(gradeNotSet?'<option value="" selected>── 学年を選択してください ──</option>':'')+
+      [1,2,3,4,5,6].map(g=>`<option value="${g}" ${(!gradeNotSet&&g===S.grade)?'selected':''}>${g}年</option>`).join('');
   const classOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===S.classNum?'selected':''}>${n}組</option>`).join('');
+  const currentCount=S.koury.children.length;
+  const canAdd=currentCount<MAX_CHILDREN;
 
   let crow='';
   S.koury.children.forEach((ch,ci)=>{
     const locked=ch.tenshutsu;
     const chGrade=ch.grade!=null?ch.grade:S.grade;
     const chClass=ch.classNum!=null?ch.classNum:S.classNum;
-    const chGradeOpts=[1,2,3,4,5,6].map(g=>`<option value="${g}" ${g===chGrade?'selected':''}>${g}年</option>`).join('');
+    const gradeChoices=[
+      ...[1,2,3,4,5,6].map(g=>({v:g,l:`${g}年`})),
+      {v:'自',l:'自'},{v:'知',l:'知'},{v:'特',l:'特'}
+    ];
+    const chGradeOpts=gradeChoices.map(o=>`<option value="${o.v}" ${String(o.v)===String(chGrade)?'selected':''}>${o.l}</option>`).join('');
     const chClassOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===chClass?'selected':''}>${n}組</option>`).join('');
-    const subjChks=subjs.map(s=>`
+    const subjChks=subjs.length===0
+      ?`<span style="font-size:10px;color:var(--muted);font-style:italic">教科・時数設定タブで教科を登録後、登録した教科が表示されます。</span>`
+      :subjs.map(s=>`
       <label style="display:flex;align-items:center;gap:3px;font-size:11px;white-space:nowrap;cursor:${locked?'default':'pointer'};opacity:${locked?.4:1}">
         <input type="checkbox" class="ksubj" data-ci="${ci}" data-s="${s}" ${ch.subjects.includes(s)?'checked':''} ${locked?'disabled':''}> ${s}
       </label>`).join('');
+    // 専科・特支はgrade/class選択有効
+    const disableGradeClass=isNormal||locked;
     crow+=`<tr style="${locked?'background:#fafafa;':''}">
       <td class="child-id" style="color:${ch.color};opacity:${locked?.5:1}">${ch.id}</td>
       <td style="text-align:center"><span class="color-dot" data-ci="${ci}" style="background:${ch.color};opacity:${locked?.4:1}"></span></td>
       <td style="text-align:center"><input type="checkbox" class="kact" data-ci="${ci}" ${ch.active?'checked':''} ${locked?'disabled':''}></td>
       <td style="white-space:nowrap">
-        <select class="kch-grade" data-ci="${ci}" ${isNormal||locked?'disabled':''} style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;opacity:${isNormal||locked?.5:1}">${chGradeOpts}</select>
-        <select class="kch-class" data-ci="${ci}" ${isNormal||locked?'disabled':''} style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;opacity:${isNormal||locked?.5:1}">${chClassOpts}</select>
+        <select class="kch-grade" data-ci="${ci}" ${disableGradeClass?'disabled':''} style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;opacity:${disableGradeClass?.5:1}">${chGradeOpts}</select>
+        <select class="kch-class" data-ci="${ci}" ${disableGradeClass?'disabled':''} style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;opacity:${disableGradeClass?.5:1}">${chClassOpts}</select>
       </td>
       <td><div style="display:flex;flex-wrap:wrap;gap:5px;padding:4px 0">${subjChks}</div></td>
       <td style="text-align:center">
@@ -1366,93 +1671,471 @@ function renderCfgKoury(){
     </tr>`;
   });
 
+  const modeLocked=S.gradeSet;
+  const modeLabel=isNormal?'通常学級':isSenka?'専科':'特別支援学級';
+  const modeSec=modeLocked
+    ?`<div class="setup-locked-val">🏫 ${modeLabel}</div>
+       <div class="setup-lock-note">学級タイプと学年は初期設定で確定済みです。変更する場合は新規作成からやり直してください。</div>`
+    :`<div class="koury-mode">
+        <label><input type="radio" name="kmode" value="normal" ${isNormal?'checked':''}> 通常学級</label>
+        <label><input type="radio" name="kmode" value="tokushi" ${mode==='tokushi'?'checked':''}> 特別支援学級</label>
+        <label><input type="radio" name="kmode" value="senka" ${isSenka?'checked':''}> 専科</label>
+      </div>`;
+  const gradeSec=modeLocked
+    ?(!isSenka?`<div class="setup-locked-val">${S.grade}年 ${S.classNum}組</div>`:'')
+    :`<select id="inp-grade" ${isSenka?'disabled':''} style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:inherit;${isSenka?'opacity:.6':''}${!isSenka?gradeBg:''}">${gradeOpts}</select>
+      <select id="inp-classnum" ${isSenka?'disabled':''} style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:inherit;${isSenka?'opacity:.6':''}">
+        ${isSenka?'<option>―</option>':classOpts}
+      </select>`;
+
   document.getElementById('cfg-body').innerHTML=`
   <div class="cfg-sec">
-    <h3>学年・クラス・学級タイプ</h3>
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-        学年：<select id="inp-grade" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:inherit;${gradeBg}">${gradeOpts}</select>
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-        クラス：<select id="inp-classnum" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:inherit">${classOpts}</select>
-      </label>
-    </div>
-    <div class="koury-mode">
-      <label><input type="radio" name="kmode" value="normal" ${isNormal?'checked':''}> 通常学級</label>
-      <label><input type="radio" name="kmode" value="tokushi" ${!isNormal?'checked':''}> 特別支援学級</label>
-    </div>
-    <div class="cfg-note" id="kmode-note"></div>
+    <h3>学級タイプ</h3>
+    ${modeSec}
+    ${!modeLocked?'<div class="cfg-note" id="kmode-note"></div>':''}
   </div>
   <div class="cfg-sec">
-    <h3>交流児童設定（最大10名：A〜J）</h3>
-    <div class="cfg-note">「転出」をチェックすると過去の週案履歴のバッジはそのまま残りますが、新規コマへの自動表示・入力UIへの表示は停止します。特別支援学級の場合、児童ごとに交流先の学年・クラスを設定できます。</div>
+    <h3>学年・クラス</h3>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px">
+      ${gradeSec}
+    </div>
+  </div>
+  <div class="cfg-sec">
+    <h3>交流児童設定（${currentCount}名登録中／最大${MAX_CHILDREN}名：A〜Z）</h3>
+    <div class="cfg-note">${isSenka
+      ?'専科：担当する通常学級に特別支援学級から交流に来る児童を教科ごとに設定できます。児童ごとに交流元の学年・クラスを設定してください。'
+      :isNormal
+        ?'通常学級：支援級の児童がこのクラスに交流に来る教科のコマにバッジが表示されます。'
+        :'特別支援学級：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。'
+    }「転出」をチェックすると過去の週案履歴のバッジはそのまま残りますが、新規コマへの自動表示・入力UIへの表示は停止します。</div>
     <table class="cfg-tbl">
       <thead><tr><th>ID</th><th>色</th><th>有効</th><th>交流先学年・組</th><th>交流教科</th><th>転出</th></tr></thead>
       <tbody>${crow}</tbody>
     </table>
-  </div>
-  <div class="cfg-actions"><button class="btn-save" id="btn-save-k">設定を保存</button></div>`;
+    ${canAdd?`<button class="btn-add" id="btn-add-child" style="margin-top:8px">＋ 交流児童を追加（${currentCount+1}人目）</button>`:''}
+  </div>`;
 
-  // 学年変更（①キャンセル時はselect値を戻す・②変更後タブ再描画）
-  const gradeEl=document.getElementById('inp-grade');
-  gradeEl.onchange=async e=>{
-    const newGrade=+e.target.value;
-    if(!newGrade){ return; } // 「未選択」オプションが選ばれた場合は無視
-    const oldGrade=S.grade;
-    const wasNotSet=!S.gradeSet;
-    if(!wasNotSet&&newGrade===oldGrade) return;
-    if(!wasNotSet&&!confirm(`学年を${newGrade}年に変更します。よろしいですか？`)){
-      e.target.value=oldGrade;
-      return;
+  // 学級タイプ変更（ロック時はスキップ）
+  if(!modeLocked){
+    const updateNote=()=>{
+      const el=document.getElementById('kmode-note');if(!el)return;
+      const m=S.koury.mode;
+      el.textContent=
+        m==='normal'?'通常学級：支援級の児童がこのクラスに交流に来る教科のコマにバッジが表示されます。':
+        m==='senka' ?'専科：担当する通常学級に特別支援学級から交流に来る児童を設定します。学年・クラスは使用しません。':
+                     '特別支援学級：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。';
+    };
+    updateNote();
+    document.querySelectorAll('[name=kmode]').forEach(r=>r.onchange=()=>{
+      const newMode=r.value;
+      const oldMode=S.koury.mode;
+      if(newMode===oldMode) return;
+      const hasData=Object.keys(db).some(y=>Object.keys(db[y]||{}).length>0);
+      if(hasData){
+        if(!confirm(`学級タイプを「${newMode==='normal'?'通常学級':newMode==='senka'?'専科':'特別支援学級'}」に変更します。\n\n⚠️ 変更前にファイル保存を推奨します。\n教科設定がリセットされる可能性があります。\n\nよろしいですか？`)){
+          r.checked=false;
+          document.querySelector(`[name=kmode][value="${oldMode}"]`).checked=true;
+          return;
+        }
+      }
+    S.koury.mode=newMode;
+    if(newMode==='senka'){
+      S.grade='senka';
+      S.gradeSet=true;
+      S.classNum=null;
+      S.subjects=[];
+    } else if(newMode!==oldMode){
+      const classType=newMode==='normal'?'normal':'tokushi';
+      if(S.gradeSet&&typeof S.grade==='number'){
+        S.subjects=defSubjectsForGrade(S.grade,classType);
+      }
     }
-    S.grade=newGrade;
-    S.gradeSet=true;
-    // 初回設定時は無条件でリセット、既存変更時のみ確認
-    const reset=wasNotSet||confirm(`教科構成を${newGrade}年向けにリセットしますか？\n（「キャンセル」を選ぶと教科は現状維持）`);
-    if(reset) S.subjects=defSubjectsForGrade(S.grade,S.koury.mode==='normal'?'normal':'tokushi');
-    if(isNormal) S.koury.children.forEach(ch=>{ch.grade=null;});
-    checkSetupRequired();
+    if(newMode==='normal') S.koury.children.forEach(ch=>{ch.grade=null;ch.classNum=null;});
+    checkSubjectMismatch();
     renderCfgKoury();
-    // 必須項目確定後：強制保存→読み戻し（①②）
-    await saveAndReload();
-  };
-  document.getElementById('inp-classnum').onchange=e=>{
-    S.classNum=+e.target.value;
-    if(isNormal) S.koury.children.forEach(ch=>{ch.classNum=null;});
-  };
+  });
+  } // end if(!modeLocked)
 
-  const updateNote=()=>{
-    const m=S.koury.mode;
-    document.getElementById('kmode-note').textContent=
-      m==='normal'?'通常学級：支援級の児童がこのクラスに交流に来る教科のコマにバッジが表示されます。':
-                   '特別支援学級：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。';
-  };
-  updateNote();
-  document.querySelectorAll('[name=kmode]').forEach(r=>r.onchange=()=>{
-    S.koury.mode=r.value;updateNote();renderCfgKoury();
+  // 学年変更（専科以外・ロックなし）
+  if(!isSenka&&!modeLocked){
+    const gradeEl=document.getElementById('inp-grade');
+    if(gradeEl) gradeEl.onchange=async e=>{
+      const newGrade=+e.target.value;
+      if(!newGrade) return;
+      const oldGrade=S.grade;
+      const wasNotSet=!S.gradeSet;
+      if(!wasNotSet&&newGrade===oldGrade) return;
+      if(!wasNotSet&&!confirm(`学年を${newGrade}年に変更します。よろしいですか？`)){
+        e.target.value=oldGrade;return;
+      }
+      S.grade=newGrade;S.gradeSet=true;
+      const reset=wasNotSet||confirm(`教科構成を${newGrade}年向けにリセットしますか？\n（「キャンセル」を選ぶと教科は現状維持）`);
+      if(reset) S.subjects=defSubjectsForGrade(S.grade,S.koury.mode==='normal'?'normal':'tokushi');
+      if(isNormal) S.koury.children.forEach(ch=>{ch.grade=null;});
+      checkSubjectMismatch();renderCfgKoury();
+      await saveAndReload();
+    };
+  }
+  if(!isSenka&&!modeLocked){
+    const classnumEl=document.getElementById('inp-classnum');
+    if(classnumEl) classnumEl.onchange=e=>{
+      S.classNum=+e.target.value;
+      if(isNormal) S.koury.children.forEach(ch=>{ch.classNum=null;});
+      save();
+    };
+  }
+
+  // 交流児童追加ボタン
+  document.getElementById('btn-add-child')?.addEventListener('click',()=>{
+    const next=S.koury.children.length;
+    if(next>=MAX_CHILDREN) return;
+    S.koury.children.push({id:CHILD_IDS[next],color:CHILD_COLORS[next],active:true,tenshutsu:false,grade:null,classNum:null,subjects:[]});
+    save();renderCfgKoury();
   });
-  document.querySelectorAll('.kact').forEach(cb=>cb.onchange=()=>S.koury.children[+cb.dataset.ci].active=cb.checked);
+
+  document.querySelectorAll('.kact').forEach(cb=>cb.onchange=()=>{S.koury.children[+cb.dataset.ci].active=cb.checked;save();});
   document.querySelectorAll('.kch-grade').forEach(sel=>sel.onchange=()=>{
-    S.koury.children[+sel.dataset.ci].grade=+sel.value;
+    const v=sel.value;
+    S.koury.children[+sel.dataset.ci].grade=isNaN(+v)?v:+v;
+    save();
   });
-  document.querySelectorAll('.kch-class').forEach(sel=>sel.onchange=()=>{
-    S.koury.children[+sel.dataset.ci].classNum=+sel.value;
-  });
+  document.querySelectorAll('.kch-class').forEach(sel=>sel.onchange=()=>{S.koury.children[+sel.dataset.ci].classNum=+sel.value;save();});
   document.querySelectorAll('.ksubj').forEach(cb=>cb.onchange=()=>{
     const ch=S.koury.children[+cb.dataset.ci];
     if(cb.checked){if(!ch.subjects.includes(cb.dataset.s))ch.subjects.push(cb.dataset.s);}
     else ch.subjects=ch.subjects.filter(s=>s!==cb.dataset.s);
+    save();
   });
   document.querySelectorAll('.ktenshutsu').forEach(cb=>cb.onchange=()=>{
-    S.koury.children[+cb.dataset.ci].tenshutsu=cb.checked;
-    renderCfgKoury();
+    S.koury.children[+cb.dataset.ci].tenshutsu=cb.checked;save();renderCfgKoury();
   });
-  document.getElementById('btn-save-k').onclick=()=>{save();alert('保存しました');};
+}
+// ─── SETTINGS: SCHEDULE ──────────────────────────────────────────
+let scheduleMonth=new Date().getMonth()+1; // 現在月
+
+function renderCfgSchedule(){
+  // 年度の月リスト（4〜3月）
+  const months=[4,5,6,7,8,9,10,11,12,1,2,3];
+  const monthTabs=months.map(m=>`
+    <button class="jtab${m===scheduleMonth?' on':''}" data-sm="${m}"
+      style="flex:none;width:40px">${m}月</button>`).join('');
+
+  document.getElementById('cfg-body').innerHTML=`
+  <div class="cfg-sec" style="display:flex;flex-direction:column;height:100%">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-shrink:0">
+      <button class="btn-add" id="btn-ics-import" style="margin-top:0">
+        📅 Googleカレンダーから読み込む（ICS）
+      </button>
+      <span style="font-size:11px;color:var(--muted)">既存データへ追記します</span>
+      <button class="btn-add" id="btn-schedule-print" style="margin-top:0;background:#546e7a">
+        🖨 行事予定を印刷
+      </button>
+    </div>
+    <div class="jtabs" style="flex-wrap:wrap;height:auto;margin-bottom:8px;flex-shrink:0">${monthTabs}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;flex-shrink:0">
+      内容列を選択してコピー → 開始行のセルをクリック → Ctrl+V で複数行ペースト可　|　Shift+↑↓で複数行選択 → Delete で一括クリア
+    </div>
+    <div class="cfg-note" style="flex-shrink:0">
+      📌 <strong>週案への表示について：</strong>
+      行事内容のスペース（全角・半角）は週案に表示する際に<strong>改行</strong>として扱われます。
+      複数の行事をスペースで区切ると週案内で縦に並びます。
+      1つの行事名をつなげて表示したい場合は、スペースの代わりに「・」（中点）などをお使いください。<br>
+      　例）「春季休業・家庭訪問」→ 週案で1行表示　／　「春季休業　家庭訪問」→ 週案で2行表示
+    </div>
+    <div style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:6px">
+      <table class="cfg-tbl" style="width:100%;table-layout:fixed">
+        <thead style="position:sticky;top:0;z-index:5">
+          <tr>
+            <th style="width:80px">日付</th>
+            <th style="width:60px">曜日</th>
+            <th>行事内容</th>
+          </tr>
+        </thead>
+        <tbody id="schedule-body"></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  renderScheduleTable();
+
+  // 月タブ切替
+  document.querySelectorAll('[data-sm]').forEach(b=>b.onclick=()=>{
+    scheduleMonth=+b.dataset.sm;
+    renderCfgSchedule();
+  });
+
+  // ICSインポートボタン
+  document.getElementById('btn-ics-import').onclick=()=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='.ics';
+    inp.onchange=async()=>{
+      const file=inp.files[0];if(!file)return;
+      const text=await file.text();
+      importICS(text);
+    };
+    inp.click();
+  };
+
+  // 行事予定印刷ボタン
+  document.getElementById('btn-schedule-print').onclick=()=>printSchedule(scheduleMonth);
+}
+
+// 行事予定の月別印刷（ページ内に一時的に追加してprint()、タブ増加なし）
+function printSchedule(m){
+  const y=m>=4?S.year:S.year+1;
+  const daysInMonth=new Date(y,m,0).getDate();
+  const DAY_JP=['日','月','火','水','木','金','土'];
+  const WAREKI=S.year-2018;
+  const warekiStr=WAREKI===1?'元':String(WAREKI);
+
+  let rows='';
+  for(let d=1;d<=daysInMonth;d++){
+    const dt=new Date(y,m-1,d);
+    const iso=localDateStr(dt);
+    const dow=dt.getDay();
+    const val=S.schedule[iso]||'';
+    const isSat=dow===6,isSun=dow===0;
+    const dowColor=isSun?'color:#c62828':isSat?'color:#1565c0':'';
+    const rowBg=val?'':(isSun?'background:#fff5f5':isSat?'background:#f5f9ff':'background:#fafafa');
+    rows+=`<tr style="${rowBg}">
+      <td style="${dowColor}">${m}/${d}</td>
+      <td style="text-align:center;${dowColor}">${DAY_JP[dow]}</td>
+      <td style="white-space:pre-wrap">${escHtml(val)||''}</td>
+    </tr>`;
+  }
+
+  // 一時的な印刷用div をbodyに追加
+  const printDiv=document.createElement('div');
+  printDiv.id='schedule-print-area';
+  printDiv.innerHTML=`
+    <h2 style="font-size:13px;margin:0 0 8px;padding-bottom:4px;border-bottom:2px solid #546e7a;color:#37474f">
+      令和${warekiStr}年度（${S.year}年度）　${m}月　行事予定　${escHtml(S.cls||'')}
+    </h2>
+    <table style="width:100%;border-collapse:collapse;font-size:10px">
+      <thead>
+        <tr>
+          <th style="background:#546e7a;color:#fff;padding:4px 6px;text-align:left;width:55px">日付</th>
+          <th style="background:#546e7a;color:#fff;padding:4px 6px;text-align:center;width:35px">曜日</th>
+          <th style="background:#546e7a;color:#fff;padding:4px 6px;text-align:left">行事内容</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.body.appendChild(printDiv);
+
+  // 印刷CSS：schedule-print-area以外を非表示
+  const style=document.createElement('style');
+  style.id='schedule-print-style';
+  style.textContent=`
+    @media print{
+      body > *:not(#schedule-print-area){display:none!important}
+      #schedule-print-area{display:block!important;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
+        font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      #schedule-print-area table td{padding:3px 6px;border:1px solid #ddd}
+      #schedule-print-area table tr:nth-child(even) td{background:#f9f9f9}
+      @page{size:A4 portrait;margin:12mm}
+    }`;
+  document.head.appendChild(style);
+
+  window.print();
+
+  // 印刷後に一時要素を削除
+  setTimeout(()=>{
+    printDiv.remove();
+    style.remove();
+  },500);
+}
+
+function renderScheduleTable(){  const tbody=document.getElementById('schedule-body');
+  if(!tbody)return;
+  const m=scheduleMonth;
+  const y=m>=4?S.year:S.year+1;
+  const daysInMonth=new Date(y,m,0).getDate();
+  const DAY_JP=['日','月','火','水','木','金','土'];
+  let rows='';
+  for(let d=1;d<=daysInMonth;d++){
+    const dt=new Date(y,m-1,d);
+    const iso=localDateStr(dt);
+    const dow=dt.getDay();
+    const val=S.schedule[iso]||'';
+    const dowColor=dow===0?'color:#b71c1c':dow===6?'color:#1565c0':'';
+    rows+=`<tr>
+      <td style="white-space:nowrap;font-size:12px">${m}/${d}</td>
+      <td style="text-align:center;font-size:12px;${dowColor}">${DAY_JP[dow]}</td>
+      <td>
+        <input type="text" class="schedule-inp" data-iso="${iso}"
+          value="${escHtml(val)}"
+          style="width:100%;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit">
+      </td>
+    </tr>`;
+  }
+  tbody.innerHTML=rows;
+
+  // 各行のinputイベント
+  // ① ↑↓キーで前後の行に移動　② Shift+↑↓で範囲選択　Delete/Backspaceで一括クリア
+  let anchorIdx=-1; // 範囲選択の起点
+  const allInputs=[...tbody.querySelectorAll('.schedule-inp')];
+
+  function clearSelection(){
+    allInputs.forEach(i=>i.style.background='');
+    anchorIdx=-1;
+  }
+  function applySelection(from,to){
+    allInputs.forEach((i,idx)=>{
+      i.style.background=(idx>=from&&idx<=to)?'#b2dfdb':'';
+    });
+  }
+
+  allInputs.forEach((inp,idx)=>{
+    inp.addEventListener('input',()=>{
+      S.schedule[inp.dataset.iso]=inp.value;
+      save();
+      renderTT();
+    });
+
+    inp.addEventListener('keydown',e=>{
+      // ↑↓：フォーカス移動（選択クリア）
+      if((e.key==='ArrowUp'||e.key==='ArrowDown')&&!e.shiftKey){
+        e.preventDefault();
+        clearSelection();
+        const next=e.key==='ArrowUp'?allInputs[idx-1]:allInputs[idx+1];
+        if(next){next.focus();next.select();}
+        return;
+      }
+      // Shift+↑↓：範囲選択
+      if((e.key==='ArrowUp'||e.key==='ArrowDown')&&e.shiftKey){
+        e.preventDefault();
+        if(anchorIdx===-1) anchorIdx=idx;
+        const curSel=allInputs.findIndex(i=>i.style.background==='rgb(178, 223, 219)');
+        const nextFocus=e.key==='ArrowUp'?Math.max(0,idx-1):Math.min(allInputs.length-1,idx+1);
+        allInputs[nextFocus].focus();
+        const from=Math.min(anchorIdx,nextFocus);
+        const to=Math.max(anchorIdx,nextFocus);
+        applySelection(from,to);
+        return;
+      }
+      // Delete/Backspace：選択中行を一括クリア
+      if(e.key==='Delete'||e.key==='Backspace'){
+        const selected=allInputs.filter(i=>i.style.background==='rgb(178, 223, 219)');
+        if(selected.length>1){
+          e.preventDefault();
+          selected.forEach(i=>{i.value='';S.schedule[i.dataset.iso]='';});
+          clearSelection();
+          save();
+          renderTT();
+          return;
+        }
+      }
+      // Escape：選択クリア
+      if(e.key==='Escape'){clearSelection();}
+    });
+
+    inp.addEventListener('focus',()=>{
+      // フォーカス時（Shiftなし）は選択クリア
+      if(!window._scheduleShiftDown) clearSelection();
+    });
+
+    // Ctrl+Vペースト対応（複数行）
+    inp.addEventListener('paste',e=>{
+      e.preventDefault();
+      const text=e.clipboardData.getData('text');
+      // \r\n（Excel行区切り）だけで分割、セル内\nはnormalizeで全角スペースに変換
+      const lines=text.split(/\r\n|\r/).map(l=>normalizeScheduleText(l)).filter(l=>l!=='');
+      if(lines.length<=1){
+        const norm=normalizeScheduleText(text);
+        const cur=inp.value;
+        const start=inp.selectionStart,end=inp.selectionEnd;
+        inp.value=cur.slice(0,start)+norm+cur.slice(end);
+        S.schedule[inp.dataset.iso]=inp.value;
+        save();
+        renderTT();
+        return;
+      }
+      lines.forEach((line,i)=>{
+        const target=allInputs[idx+i];
+        if(!target) return;
+        target.value=line;
+        S.schedule[target.dataset.iso]=line;
+      });
+      save();
+      renderTT();
+    });
+  });
+
+}
+
+// ICSパース・インポート（ical.js使用）
+function importICS(icsText){
+  if(typeof ICAL==='undefined'){alert('ical.jsが読み込まれていません。');return;}
+  let count=0;
+  try{
+    const jcal=ICAL.parse(icsText);
+    const comp=new ICAL.Component(jcal);
+    const vevents=comp.getAllSubcomponents('vevent');
+    vevents.forEach(vevent=>{
+      const ev=new ICAL.Event(vevent);
+      const title=ev.summary||'';
+      if(!title) return;
+      // 繰り返しイベントの展開
+      if(ev.isRecurring()){
+        const y1=S.year,y2=S.year+1;
+        const start=ICAL.Time.fromDateString(`${y1}-04-01`);
+        const end=ICAL.Time.fromDateString(`${y2}-03-31`);
+        const iter=ev.iterator();
+        let next;
+        while((next=iter.next())){
+          if(next.compare(end)>0) break;
+          if(next.compare(start)<0) continue;
+          const iso=next.toString().slice(0,10);
+          appendSchedule(iso,title);
+          count++;
+        }
+      } else {
+        const dtstart=ev.startDate;
+        const iso=dtstart.toString().slice(0,10);
+        appendSchedule(iso,title);
+        count++;
+      }
+    });
+    save();
+    renderScheduleTable();
+    renderTT();
+    alert(`${count}件のイベントを追記しました。`);
+  }catch(e){
+    alert('ICSファイルの読み込みに失敗しました：'+e.message);
+  }
+}
+
+// 行事テキスト正規化：全角・半角スペース・改行を全角スペース1つに統一
+function normalizeScheduleText(text){
+  let t=text.trim();
+  // Excelが付与する囲みダブルクォートを除去（先頭・末尾が"の場合）
+  if(t.startsWith('"')&&t.endsWith('"')) t=t.slice(1,-1);
+  // Excelの""エスケープ → " に戻す
+  t=t.replace(/""/g,'"');
+  return t
+    .replace(/[\u3000 \t\n\r]+/g,'\u3000') // 全角・半角スペース・改行 → 全角スペース1つ
+    .replace(/^\u3000|\u3000$/g,'');        // 前後の全角スペースをトリム
+}
+
+// 行事を追記（既存があれば全角スペースで連結）
+function appendSchedule(iso,title){
+  const norm=normalizeScheduleText(title);
+  if(!norm) return;
+  const cur=S.schedule[iso]||'';
+  if(cur){
+    // 既に同じタイトルがあればスキップ
+    if(cur.split('\u3000').includes(norm)) return;
+    S.schedule[iso]=cur+'\u3000'+norm;
+  } else {
+    S.schedule[iso]=norm;
+  }
 }
 function renderCfg(){
   document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('on',b.dataset.ct===curCfgTab));
   if(curCfgTab==='slots') renderCfgSlots();
   else if(curCfgTab==='subjects') renderCfgSubjects();
+  else if(curCfgTab==='schedule') renderCfgSchedule();
   else renderCfgKoury();
 }
 
@@ -1463,10 +2146,15 @@ function kBadgesDefault(subjSet){
   const mode=S.koury.mode;
   const shown=new Set();
   for(const ch of S.koury.children){
-    if(!ch.active||ch.tenshutsu) continue; // 転出児童はデフォルト計算から除外
+    if(!ch.active||ch.tenshutsu) continue;
     let show=false;
-    if(mode==='normal'){for(const s of subjSet){if(ch.subjects.includes(s)){show=true;break;}}}
-    else{let inEx=false;for(const s of subjSet){if(ch.subjects.includes(s)){inEx=true;break;}}show=!inEx;}
+    // 通常学級・専科：交流教科に一致する児童を表示
+    if(mode==='normal'||mode==='senka'){
+      for(const s of subjSet){if(ch.subjects.includes(s)){show=true;break;}}
+    } else {
+      // 特別支援学級：交流に行かない（在籍中の）コマで表示
+      let inEx=false;for(const s of subjSet){if(ch.subjects.includes(s)){inEx=true;break;}}show=!inEx;
+    }
     if(show) shown.add(ch.id);
   }
   return shown;
@@ -1508,6 +2196,8 @@ function kBadgesForSubject(subj, koury){
 function buildRenderOrder(vsl){
   const order=[];
 
+  // 行事行：朝メモ行の上に日別で常時表示
+  order.push({type:'schedule',label:'行事',hdCls:'schedule-hd',cellCls:'schedule-cell',perDay:true});
   // ① 朝メモ行：朝モスロットの有効無効に関わらず常時表示
   order.push({type:'memo',key:'asa',label:'朝',hdCls:'',cellCls:'',perDay:true});
 
@@ -1522,11 +2212,31 @@ function buildRenderOrder(vsl){
     }
   }
   order.push({type:'memo',key:'leave',label:'下校',hdCls:'leave-hd',cellCls:'leave-cell',perDay:true});
-  order.push({type:'memo',key:'hw',label:'宿題・連絡',hdCls:'leave-hd',cellCls:'leave-cell',tall:true,perDay:true});
+  order.push({type:'memo',key:'hw',label:'宿題',hdCls:'hw-hd',cellCls:'hw-cell',perDay:true});
+  order.push({type:'memo',key:'renraku',label:'連絡',hdCls:'renraku-hd',cellCls:'renraku-cell',tall:true,perDay:true});
+  order.push({type:'week',key:'weekly_aim',label:'週めあて',hdCls:'aim-hd',cellCls:'aim-cell'});
+  order.push({type:'week',key:'notice',label:'おしらせ',hdCls:'notice-hd',cellCls:'notice-cell',tall:true,printStudent:true});
   for(let i=0;i<5;i++){
-    order.push({type:'note',idx:i,label:`メモ${i+1}`,hdCls:'note-hd',cellCls:'note-cell'});
+    order.push({type:'note',idx:i,label:`校内メモ${i+1}`,hdCls:'note-hd',cellCls:'note-cell',noteRow:true});
   }
   return order;
+}
+
+// 日付文字列と曜日キーから、その日が「アクティブ」になる (month, week) を返す
+// 非アクティブ日（月またぎ）のデータ取得に使用
+function findCellLocationForDate(isoDate,dk){
+  const dt=new Date(isoDate);
+  const month=dt.getMonth()+1;
+  const year=dt.getFullYear();
+  const acYear=month>=4?year:year-1;
+  for(let w=1;w<=6;w++){
+    if(!isValidWeek(acYear,month,w)) continue;
+    const monday=calcMonday(acYear,month,w);
+    const cellDt=new Date(monday);
+    cellDt.setDate(cellDt.getDate()+DAY_OFFSETS[dk]);
+    if(localDateStr(cellDt)===isoDate) return{month,week:w};
+  }
+  return null;
 }
 
 // ─── TIMETABLE ───────────────────────────────────────────────────
@@ -1551,6 +2261,16 @@ function renderTT(){
       dkActive[dk]=true;
     }
   });
+  // 非アクティブ日のデータ取得先 (month,week) を事前解決
+  const dkCellLoc={}; // dk → {month,week} or null
+  vdk.forEach(dk=>{
+    if(dkActive[dk]){
+      dkCellLoc[dk]={month:curMonth,week:curWeek};
+    } else {
+      const iso=dkDate[dk];
+      dkCellLoc[dk]=iso?findCellLocationForDate(iso,dk):null;
+    }
+  });
 
   // ヘッダー行（日〜土順）
   let hh=`<tr><th class="th-sl">時間</th>`;
@@ -1573,14 +2293,43 @@ function renderTT(){
   let rows='';
 
   for(const item of order){
-    // ─ 週単位メモ行（notes：週メモ1〜5）─
+    // ─ 週単位メモ行（notes：校内メモ1〜5）─
     if(item.type==='note'){
       const key=`note_${item.idx}`;
       const val=memos.notes[item.idx]||'';
-      rows+=`<tr>
+      rows+=`<tr class="note-row">
         <td class="memo-hd ${item.hdCls}">${item.label}</td>
         <td class="memo-cell ${item.cellCls}" colspan="${vdk.length}">
           <textarea data-memokey="${key}" style="height:20px">${escHtml(val)}</textarea>
+        </td>
+      </tr>`;
+      continue;
+    }
+    // ─ 行事行（S.scheduleから日付キーで取得）─
+    if(item.type==='schedule'){
+      rows+=`<tr><td class="memo-hd ${item.hdCls}">${item.label}</td>`;
+      for(const dk of vdk){
+        const active=dkActive[dk];
+        const iso=dkDate[dk];
+        const val=iso?(S.schedule[iso]||''):'';
+        if(!active){
+          rows+=`<td class="memo-cell ${item.cellCls}" style="background:#ebebeb;opacity:.5"></td>`;
+        } else {
+          const displayVal=escHtml(val).replace(/\u3000/g,'<br>');
+          rows+=`<td class="memo-cell ${item.cellCls}" data-dk="${dk}"><div class="schedule-display">${displayVal}</div></td>`;
+        }
+      }
+      rows+='</tr>';
+      continue;
+    }
+    // ─ 週ブチ抜き行（週めあて・おしらせ）─
+    if(item.type==='week'){
+      const val=memos[item.key]||'';
+      const h=item.tall?'36px':'20px';
+      rows+=`<tr>
+        <td class="memo-hd ${item.hdCls}">${item.label}</td>
+        <td class="memo-cell ${item.cellCls}" colspan="${vdk.length}">
+          <textarea data-memokey="${item.key}" style="height:${h}">${escHtml(val)}</textarea>
         </td>
       </tr>`;
       continue;
@@ -1591,9 +2340,15 @@ function renderTT(){
       rows+=`<tr><td class="memo-hd ${item.hdCls}">${item.label}</td>`;
       for(const dk of vdk){
         const active=dkActive[dk];
-        const val=(memos[item.key]?.[dk])||'';
+        const loc=dkCellLoc[dk];
+        const effectiveMemos=active?memos:(loc?getWeekMemos(loc.month,loc.week):null);
+        const val=(effectiveMemos?.[item.key]?.[dk])||'';
         if(!active){
-          rows+=`<td class="memo-cell ${item.cellCls}" style="background:#ebebeb;opacity:.5"></td>`;
+          if(val){
+            rows+=`<td class="memo-cell ${item.cellCls}" style="opacity:.5"><div style="font-size:11px;padding:2px 3px;white-space:pre-line;color:var(--text)">${escHtml(val)}</div></td>`;
+          } else {
+            rows+=`<td class="memo-cell ${item.cellCls}" style="background:#ebebeb;opacity:.5"></td>`;
+          }
         } else {
           rows+=`<td class="memo-cell ${item.cellCls}" data-dk="${dk}"><textarea data-memokey="${item.key}" data-dk="${dk}" style="height:${h}">${escHtml(val)}</textarea></td>`;
         }
@@ -1615,7 +2370,21 @@ function renderTT(){
       }
       // 非アクティブセル（月またぎ：当該月外の日付）
       if(!active){
-        rows+=`<td class="cell inactive"><div class="cin" style="justify-content:center;align-items:center"><span style="font-size:10px;color:#bbb">―</span></div></td>`;
+        const loc=dkCellLoc[dk];
+        const c=loc?getCell(loc.month,loc.week,sl.id,dk):{s1:'',m1:'',s2:'',m2:''};
+        if(!c.s1){
+          rows+=`<td class="cell inactive"><div class="cin" style="justify-content:center;align-items:center"><span style="font-size:10px;color:#bbb">―</span></div></td>`;
+        } else {
+          const col1=sColor(c.s1);
+          let inner=`<div class="srow"><span class="sname" style="color:${col1}">${c.s1}</span></div>`;
+          if(c.m1) inner+=`<div class="cmemo">${escHtml(c.m1)}</div>`;
+          if(c.s2){
+            const col2=sColor(c.s2);
+            inner+=`<div class="csep"></div><div class="srow"><span class="sname" style="color:${col2}">${c.s2}</span></div>`;
+            if(c.m2) inner+=`<div class="cmemo">${escHtml(c.m2)}</div>`;
+          }
+          rows+=`<td class="cell inactive"><div class="cin">${inner}</div></td>`;
+        }
         continue;
       }
       const c=getCell(curMonth,curWeek,sl.id,dk);
@@ -1631,7 +2400,7 @@ function renderTT(){
         const col1=sColor(c.s1);
         let b1='';
         if(isMod) b1=`<span class="tbadge tb-m">1/${sl.modN}</span>`;
-        else if(has2) b1=`<span class="tbadge tb-h">½</span>`;
+        else if(has2){const r1=c.ratio1??0.5;b1=`<span class="tbadge tb-h">${r1}</span>`;}
         // 教科1名 + 単位バッジ（右端）
         inner+=`<div class="srow"><span class="sname" style="color:${col1}">${c.s1}</span>${b1}</div>`;
         // 教科1のバッジ（名前行の直下）
@@ -1641,7 +2410,7 @@ function renderTT(){
           const col2=sColor(c.s2);
           inner+=`<div class="csep"></div>`;
           // 教科2名 + ½バッジ（右端）
-          inner+=`<div class="srow"><span class="sname" style="color:${col2}">${c.s2}</span><span class="tbadge tb-h">½</span></div>`;
+          inner+=`<div class="srow"><span class="sname" style="color:${col2}">${c.s2}</span><span class="tbadge tb-h">${Math.round((1-(c.ratio1??0.5))*100)/100}</span></div>`;
           // 教科2のバッジ（名前行の直下）
           if(badges2.length) inner+=`<div class="cbadges-sub">${kbHtml(badges2)}</div>`;
           if(c.m2) inner+=`<div class="cmemo">${escHtml(c.m2)}</div>`;
@@ -1658,6 +2427,15 @@ function renderTT(){
     td.addEventListener('click',()=>openModal(td.dataset.sl,td.dataset.dk));
   });
 
+  // 行事テキストエリアの保存イベント
+  document.querySelectorAll('textarea[data-scheduledate]').forEach(ta=>{
+    autoGrowTA(ta);
+    ta.addEventListener('input',()=>{
+      autoGrowTA(ta);
+      const d=ta.dataset.scheduledate;
+      if(d){S.schedule[d]=ta.value;save();}
+    });
+  });
   // メモテキストエリアの保存イベント
   document.querySelectorAll('textarea[data-memokey]').forEach(ta=>{
     autoGrowTA(ta);
@@ -1901,6 +2679,7 @@ function openModal(slotId,dk){
     s1:c.s1||'',m1:c.m1||'',
     s2:c.s2||'',m2:c.m2||'',
     has2:!!c.s2,isMod,modN:sl.modN||3,isFull,
+    ratio1:c.ratio1??0.5,  // 教科1の比率（デフォルト0.5）
     koury1:initKoury1, koury2:initKoury2
   };
   const dayLbl=DAY_LABELS[dk];
@@ -1952,11 +2731,24 @@ function renderMBody(){
   function makeBlock(which){
     const sel=which===1?mstate.s1:mstate.s2;
     const mv=which===1?mstate.m1:mstate.m2;
-    const lbl=which===1?(has2?'1教科目（½）':'教科'):'2教科目（½）';
+    const r1=mstate.ratio1??0.5;
+    const r2=Math.round((1-r1)*100)/100;
+    const ratioVal=which===1?r1:r2;
+    const lbl=which===1?(has2?`1教科目`:'教科'):`2教科目`;
     const lcls=which===1?'mcl1':'mcl2';
-    const unitNote=isMod?`（1/${modN}単位）`:has2?'（0.5単位×2）':'（1単位）';
+    const unitNote=isMod?`（1/${modN}単位）`:has2?`（${ratioVal}単位）`:'（1単位）';
+    const ratioInput=has2&&which===1?`
+      <div class="mf" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label class="mfl" style="margin-bottom:0;white-space:nowrap">1教科目の比率</label>
+        <input type="number" id="ratio1-inp" min="0.1" max="0.9" step="0.1"
+          value="${r1}" style="width:70px;padding:4px 6px;border:1px solid var(--border);
+          border-radius:5px;font-size:13px;font-family:inherit;text-align:center">
+        <span style="font-size:11px;color:var(--muted)">2教科目：<b id="ratio2-disp">${r2}</b></span>
+      </div>`:
+      has2&&which===2?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding:3px 8px;background:#f5f6f8;border-radius:4px">比率：<b>${r2}</b>（1 − ${r1}）</div>`:'';
     return `<div>
-      <div class="mcollabel ${lcls}">${lbl} ${which===1?unitNote:''}</div>
+      <div class="mcollabel ${lcls}">${lbl} ${unitNote}</div>
+      ${ratioInput}
       <div class="mf"><label class="mfl">教科</label>
         <div class="chips" id="chips${which}">${makeChips(which)}</div>
         <input type="text" id="sinp${which}" value="${escHtml(sel)}" placeholder="直接入力">
@@ -1976,7 +2768,7 @@ function renderMBody(){
       <button class="del2btn" id="del2btn">2教科目を削除して1教科（1単位）に戻す</button>`;
   } else {
     body=`${makeBlock(1)}
-      ${isFull?`<button class="add2btn" id="add2btn">＋ 2教科目を追加（どちらも自動で0.5単位になります）</button>`:''}`;
+      ${isFull?`<button class="add2btn" id="add2btn">＋ 2教科目を追加（比率はデフォルト0.5、変更可）</button>`:''}`;
   }
   body+=`<div class="mbtns">
     <button class="mbtn mbok" id="mok">保存</button>
@@ -1987,17 +2779,26 @@ function renderMBody(){
   document.getElementById('mbody').innerHTML=body;
   document.getElementById('modal').classList.toggle('wide',has2);
 
-  // ─ チップイベント ─
+  // ─ チップイベント（トグル：選択中を再クリックで解除）─
   document.querySelectorAll('.chip').forEach(b=>{
     b.addEventListener('click',()=>{
       const which=+b.dataset.cid, s=b.dataset.s, c=sColor(s);
-      document.querySelectorAll(`.chip[data-cid="${which}"]`).forEach(x=>{
-        const xc=sColor(x.dataset.s);
-        x.style.background='#fff';x.style.color=xc;x.style.borderColor=xc+'55';
-      });
-      b.style.background=c;b.style.color='#fff';b.style.borderColor=c;
-      if(which===1){mstate.s1=s;const inp=document.getElementById('sinp1');if(inp)inp.value=s;}
-      else{mstate.s2=s;const inp=document.getElementById('sinp2');if(inp)inp.value=s;}
+      const current=which===1?mstate.s1:mstate.s2;
+      if(current===s){
+        // 選択中 → 解除
+        b.style.background='#fff';b.style.color=c;b.style.borderColor=c+'55';
+        if(which===1){mstate.s1='';const inp=document.getElementById('sinp1');if(inp)inp.value='';}
+        else{mstate.s2='';const inp=document.getElementById('sinp2');if(inp)inp.value='';}
+      } else {
+        // 新規選択
+        document.querySelectorAll(`.chip[data-cid="${which}"]`).forEach(x=>{
+          const xc=sColor(x.dataset.s);
+          x.style.background='#fff';x.style.color=xc;x.style.borderColor=xc+'55';
+        });
+        b.style.background=c;b.style.color='#fff';b.style.borderColor=c;
+        if(which===1){mstate.s1=s;const inp=document.getElementById('sinp1');if(inp)inp.value=s;}
+        else{mstate.s2=s;const inp=document.getElementById('sinp2');if(inp)inp.value=s;}
+      }
       refreshKouryUI(which);
     });
   });
@@ -2005,6 +2806,16 @@ function renderMBody(){
   // ─ テキスト直接入力 ─
   const sinp1=document.getElementById('sinp1');
   if(sinp1) sinp1.addEventListener('input',e=>{mstate.s1=e.target.value;refreshKouryUI(1);});
+  const ratio1inp=document.getElementById('ratio1-inp');
+  if(ratio1inp) ratio1inp.addEventListener('input',e=>{
+    const v=Math.min(0.9,Math.max(0.1,parseFloat(e.target.value)||0.5));
+    mstate.ratio1=Math.round(v*100)/100;
+    const r2=Math.round((1-mstate.ratio1)*100)/100;
+    const disp=document.getElementById('ratio2-disp');
+    if(disp) disp.textContent=r2;
+    const mcl2=document.querySelector('.mcollabel.mcl2');
+    if(mcl2) mcl2.textContent=`2教科目 （${r2}単位）`;
+  });
   const sinp2=document.getElementById('sinp2');
   if(sinp2) sinp2.addEventListener('input',e=>{mstate.s2=e.target.value;refreshKouryUI(2);});
 
@@ -2018,6 +2829,7 @@ function renderMBody(){
     mstate.koury2={};
     ac.forEach(ch=>{mstate.koury2[ch.id]=def2.has(ch.id);});
     mstate.has2=true;
+    mstate.ratio1=0.5; // 2教科追加時はデフォルト0.5
     renderMBody();
   });
   document.getElementById('del2btn')?.addEventListener('click',()=>{
@@ -2069,12 +2881,13 @@ function saveModal(){
   const kouryDiff1=diffKoury(mstate.koury1,def1,ac);
   const kouryDiff2=has2?diffKoury(mstate.koury2,def2,ac):null;
 
-  setCell(m,w,slotId,dk,{s1,m1,s2,m2,koury1:kouryDiff1,koury2:kouryDiff2});
+  const ratio1=has2?(mstate.ratio1??0.5):null;
+  setCell(m,w,slotId,dk,{s1,m1,s2,m2,ratio1,koury1:kouryDiff1,koury2:kouryDiff2});
   closeModal();renderTT();renderJisuu();
 }
 function delModal(){
   const{slotId,dk,m,w}=mstate;
-  setCell(m,w,slotId,dk,{s1:'',m1:'',s2:'',m2:'',koury1:null,koury2:null});
+  setCell(m,w,slotId,dk,{s1:'',m1:'',s2:'',m2:'',ratio1:null,koury1:null,koury2:null});
   closeModal();renderTT();renderJisuu();
 }
 function closeModal(){
@@ -2090,15 +2903,17 @@ function savePat(idx){
     cells[sl.id]={};
     for(const dk of DKEYS){
       const c=getCell(curMonth,curWeek,sl.id,dk);
-      if(c.s1||c.s2) cells[sl.id][dk]={s1:c.s1,m1:c.m1,s2:c.s2,m2:c.m2,koury1:c.koury1||null,koury2:c.koury2||null};
+      if(c.s1||c.s2) cells[sl.id][dk]={s1:c.s1,m1:c.m1,s2:c.s2,m2:c.m2,ratio1:c.ratio1??null,koury1:c.koury1||null,koury2:c.koury2||null};
     }
   }
   // メモ行（日別）もパターンに含める
   const memos=getWeekMemos(curMonth,curWeek);
   const memoData={};
-  ['asa','gyoukan','lunch','leave','hw'].forEach(key=>{
+  ['asa','gyoukan','lunch','leave','hw','renraku'].forEach(key=>{
     memoData[key]={...memos[key]};
   });
+  memoData.weekly_aim=memos.weekly_aim||'';
+  memoData.notice=memos.notice||'';
   S.patterns[idx].cells=cells;
   S.patterns[idx].memos=memoData;
   save();buildPatMenus();
@@ -2110,13 +2925,15 @@ function loadPat(idx){
   // メモ行の復元（パターンにmemosが含まれている場合のみ）
   const memoData=S.patterns[idx].memos;
   if(memoData){
-    ['asa','gyoukan','lunch','leave','hw'].forEach(key=>{
+    ['asa','gyoukan','lunch','leave','hw','renraku'].forEach(key=>{
       const dayObj=memoData[key];
       if(!dayObj) return;
       DKEYS.forEach(dk=>{
         if(dayObj[dk]!==undefined) setWeekMemo(curMonth,curWeek,key,dayObj[dk],dk);
       });
     });
+    if(memoData.weekly_aim!==undefined) setWeekMemo(curMonth,curWeek,'weekly_aim',memoData.weekly_aim);
+    if(memoData.notice!==undefined) setWeekMemo(curMonth,curWeek,'notice',memoData.notice);
   }
   renderTT();renderJisuu();
 }
@@ -2272,6 +3089,47 @@ function renderSummary(){
 
 // ─── NAVIGATION ──────────────────────────────────────────────────
 function semOf(m){for(const[s,sd]of Object.entries(SEMS))if(sd.months.includes(m))return s;return'1';}
+// ─── 【STEP5】週ナビゲーション ───────────────────────────────────
+function navigateToWeek(month,week){
+  const sem=semOf(month);
+  curSem=sem;curMonth=month;curWeek=week;
+  document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
+  document.querySelector(`.stab[data-sem="${sem}"]`)?.classList.add('on');
+  showView('sem');setSem(sem);
+}
+function prevWeekNav(){
+  const vw=validWeeksForMonth(curMonth);
+  const idx=vw.indexOf(curWeek);
+  if(idx>0){navigateToWeek(curMonth,vw[idx-1]);return;}
+  const mi=MONTH_ORDER.indexOf(curMonth);
+  if(mi<=0) return;
+  const prevM=MONTH_ORDER[mi-1];
+  const prevVw=validWeeksForMonth(prevM);
+  if(prevVw.length>0) navigateToWeek(prevM,prevVw[prevVw.length-1]);
+}
+function nextWeekNav(){
+  const vw=validWeeksForMonth(curMonth);
+  const idx=vw.indexOf(curWeek);
+  if(idx<vw.length-1){navigateToWeek(curMonth,vw[idx+1]);return;}
+  const mi=MONTH_ORDER.indexOf(curMonth);
+  if(mi>=MONTH_ORDER.length-1) return;
+  const nextM=MONTH_ORDER[mi+1];
+  const nextVw=validWeeksForMonth(nextM);
+  if(nextVw.length>0) navigateToWeek(nextM,nextVw[0]);
+}
+function gotoToday(){
+  const today=new Date();
+  const m=today.getMonth()+1;
+  const vw=validWeeksForMonth(m);
+  let targetWeek=vw[0]||1;
+  for(const w of vw){
+    const monday=calcMonday(S.year,m,w);
+    const sun=new Date(monday);sun.setDate(sun.getDate()-1);
+    const sat=new Date(monday);sat.setDate(sat.getDate()+5);
+    if(today>=sun&&today<=sat){targetWeek=w;break;}
+  }
+  navigateToWeek(m,targetWeek);
+}
 function showView(v){
   curView=v;
   const isCfg=v==='cfg',isSem=v==='sem',isYear=v==='year';
@@ -2291,24 +3149,6 @@ function showView(v){
   if(isCfg) renderCfg();
 }
 // ⑤ 学年未設定時に設定タブへ誘導（init()完了後に呼ぶ）
-function enforceSetupIfNeeded(){
-  const missing=getMissingRequired();
-  if(missing.length===0){hideSetupBanner();return;}
-  // バナーに未入力項目を表示
-  const msg=document.getElementById('setup-banner-msg');
-  if(msg) msg.textContent=`⚠️ 未入力の必須項目：${missing.join('・')}。設定してから操作を開始してください。`;
-  showSetupBanner();
-  // 学年が未入力なら学級・交流設定タブへ、それ以外はヘッダーに集中
-  if(!S.gradeSet){
-    document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
-    const cfgTab=document.querySelector('.stab[data-view="cfg"]');
-    if(cfgTab) cfgTab.classList.add('on');
-    curCfgTab='koury';
-    showView('cfg');
-  }
-  // cls/teacherが未入力の場合はヘッダー入力欄を警告色にするだけでブロックしない
-  updateRequiredFieldStyles();
-}
 function setSem(s){
   curSem=s;
   if(!SEMS[s].months.includes(curMonth)) curMonth=SEMS[s].months[0];
@@ -2476,7 +3316,7 @@ function printWeek(skipTitle=false){
 
   // ── textarea → div に変換してテキスト全表示 ──
   const taMap=[];
-  document.querySelectorAll('#tt-wrap textarea[data-memokey]').forEach(ta=>{
+  document.querySelectorAll('#tt-wrap textarea[data-memokey], #tt-wrap textarea[data-scheduledate]').forEach(ta=>{
     const div=document.createElement('div');
     div.className='print-ta-div';
     div.textContent=ta.value;
@@ -2486,9 +3326,21 @@ function printWeek(skipTitle=false){
     taMap.push({div,val:ta.value,key:ta.dataset.memokey,dk:ta.dataset.dk||null});
   });
 
+  // ── 教科名：印刷幅に収まらない場合フォントサイズを縮小 ──
+  const snameMap=[];
+  document.querySelectorAll('#ttb .sname').forEach(el=>{
+    const orig=el.style.fontSize||'';
+    let fs=10;
+    el.style.fontSize=fs+'px';
+    el.style.whiteSpace='nowrap';
+    while(el.scrollWidth>el.offsetWidth&&fs>6){fs-=0.5;el.style.fontSize=fs+'px';}
+    snameMap.push({el,orig});
+  });
+
   window.print();
 
-  // ── 印刷後に div → textarea に戻す ──
+  // ── 縮小スタイルをリセット ──
+  snameMap.forEach(({el,orig})=>{el.style.fontSize=orig;el.style.whiteSpace='';});
   setTimeout(()=>{
     taMap.forEach(({div,val,key,dk})=>{
       const ta=document.createElement('textarea');
@@ -2497,16 +3349,93 @@ function printWeek(skipTitle=false){
       ta.value=val;
       ta.style.cssText='width:100%;border:none;background:transparent;font-family:inherit;font-size:11px;resize:none;padding:1px 3px;outline:none;color:var(--text);min-height:20px;overflow:hidden';
       autoGrowTA(ta);
-      ta.addEventListener('input',()=>{autoGrowTA(ta);setWeekMemo(curMonth,curWeek,ta.dataset.memokey,ta.value,ta.dataset.dk||null);});
+      ta.addEventListener('input',()=>{
+        autoGrowTA(ta);
+        if(ta.dataset.memokey) setWeekMemo(curMonth,curWeek,ta.dataset.memokey,ta.value,ta.dataset.dk||null);
+        if(ta.dataset.scheduledate){S.schedule[ta.dataset.scheduledate]=ta.value;save();}
+      });
       div.parentNode.replaceChild(ta,div);
     });
     document.querySelectorAll('.print-hide-col').forEach(el=>el.classList.remove('print-hide-col'));
-    // notes行のcolspanを元に戻す（日別メモ行はcolspan不使用）
     document.querySelectorAll('td.memo-cell[colspan]').forEach(td=>td.setAttribute('colspan',allDk.length));
     document.getElementById('print-summary').innerHTML='';
   },600);
 }
 
+// ─── 専科：実施記録簿シート生成 ──────────────────────────────────
+const SENKA_TKEYS=['sun','mon','tue','wed','thu','fri','sat'];
+function buildSenkaWeekSheet(month,week){
+  const mondayStr=getEffectiveMonday(month,week);
+  const fullSlots=S.slots.filter(sl=>sl.base==='full').slice(0,6);
+  const dateStrs=SENKA_TKEYS.map(dk=>{
+    if(!mondayStr) return '';
+    const dt=new Date(mondayStr);dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
+    return `${dt.getMonth()+1}/${dt.getDate()}`;
+  });
+  const e9=Array(9).fill('');
+  const kdou=()=>['','\u52E4\u3000\u52D9\n\u5185\u3000\u5BB9',...Array(7).fill('')];
+  const aoa=[];
+  aoa.push([...e9]);
+  aoa.push(['','','実施記録簿','','','','','','']);
+  aoa.push([...e9]);
+  aoa.push([`${month}月第${week}週`,...Array(8).fill('')]);
+  aoa.push([...e9]);
+  aoa.push([...e9]);
+  aoa.push([...e9]);
+  aoa.push(['時程','日',...dateStrs]);
+  aoa.push(['','曜日','日','月','火','水','木','金','土']);
+  aoa.push(kdou());
+  for(let si=0;si<6;si++){
+    const sl=fullSlots[si]||null;
+    const gbRow=[si+1,'学年・組'];
+    const kyRow=['','教科等'];
+    SENKA_TKEYS.forEach(dk=>{
+      if(sl){
+        const c=getCell(month,week,sl.id,dk);
+        if(c.s1){const p=_parseSenkaLabel(c.s1);gbRow.push(p.gakuban);kyRow.push(p.kyoka);}
+        else{gbRow.push('');kyRow.push('');}
+      } else {gbRow.push('');kyRow.push('');}
+    });
+    aoa.push(gbRow);aoa.push(kyRow);aoa.push(kdou());
+  }
+  aoa.push(kdou());
+  aoa.push(['勤務時間数',...Array(8).fill('')]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const merges=[
+    {s:{r:1,c:2},e:{r:1,c:7}},{s:{r:3,c:0},e:{r:3,c:1}},
+    {s:{r:5,c:0},e:{r:5,c:1}},{s:{r:7,c:0},e:{r:8,c:0}},
+    {s:{r:29,c:0},e:{r:29,c:1}},
+  ];
+  for(let si=0;si<6;si++){const r=10+si*3;merges.push({s:{r,c:0},e:{r:r+2,c:0}});}
+  ws['!merges']=merges;
+  ws['!cols']=[{wch:6},{wch:9},...Array(7).fill({wch:12})];
+  return ws;
+}
+function buildSenkaMonthSheet(month){
+  const year=month>=4?S.year:S.year+1;
+  const daysInMonth=new Date(year,month,0).getDate();
+  const DAY_JP=['日','月','火','水','木','金','土'];
+  const aoa=[['勤務日\n日　曜','','勤務実績時間\n（研修時間を除く・年休等を含む）','研修\n（時間単位）']];
+  for(let d=1;d<=31;d++){
+    if(d>daysInMonth){aoa.push([d,'','','']);continue;}
+    const dt=new Date(year,month-1,d);
+    const dk=DKEYS[dt.getDay()];
+    const loc=findCellLocationForDate(localDateStr(dt),dk);
+    let jissuu=0,kenshuu=0;
+    if(loc){
+      for(const sl of S.slots){
+        if(sl.base==='none') continue;
+        const c=getCell(month,loc.week,sl.id,dk);
+        if(c.s1){if(c.s1==='研修')kenshuu++;else jissuu++;}
+      }
+    }
+    aoa.push([d,DAY_JP[dt.getDay()],jissuu||'',kenshuu||'']);
+  }
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
+  ws['!cols']=[{wch:8},{wch:4},{wch:22},{wch:12}];
+  return ws;
+}
 function exportExcel(){
   if(curView!=='sem'){alert('週案タブを表示した状態でExcel出力してください。');return;}
   if(typeof XLSX==='undefined'){alert('SheetJSの読み込みに失敗しました。');return;}
@@ -2544,13 +3473,28 @@ function exportExcel(){
 
   const order=buildRenderOrder(vsl);
   for(const item of order){
+    if(item.type==='schedule'){
+      const row=[item.label];
+      for(const dk of vdk){
+        if(dkInactive(dk)){row.push('');continue;}
+        const dt=new Date(mondayStr||new Date());
+        dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
+        const iso=localDateStr(dt);
+        row.push(S.schedule[iso]||'');
+      }
+      aoa.push(row);
+      continue;
+    }
     if(item.type==='memo'&&item.perDay){
-      // 日別メモ行：曜日ごとに1セル
       const row=[item.label];
       for(const dk of vdk){
         row.push(dkInactive(dk)?'':(memos[item.key]?.[dk]||''));
       }
       aoa.push(row);
+      continue;
+    }
+    if(item.type==='week'){
+      aoa.push([item.label,memos[item.key]||'',...Array(nCols-2).fill('')]);
       continue;
     }
     if(item.type==='note'){
@@ -2633,7 +3577,7 @@ function exportExcel(){
   // 週メモ行（notes）のみセル結合。日別メモ行は結合不要
   let rowIdx=4;
   for(const item of order){
-    if(item.type==='note'){
+    if(item.type==='note'||item.type==='week'){
       ws['!merges'].push({s:{r:rowIdx,c:1},e:{r:rowIdx,c:nCols-1}});
     }
     rowIdx++;
@@ -2643,6 +3587,16 @@ function exportExcel(){
 
   XLSX.utils.book_append_sheet(wb,ws,'週案');
   XLSX.utils.book_append_sheet(wb,js,'集計');
+
+  // 専科モード：実施記録簿シートを追加
+  if(S.koury.mode==='senka'){
+    validWeeksForMonth(curMonth).forEach(w=>{
+      const sheetName=`${curMonth}月第${w}週`;
+      XLSX.utils.book_append_sheet(wb,buildSenkaWeekSheet(curMonth,w),sheetName);
+    });
+    XLSX.utils.book_append_sheet(wb,buildSenkaMonthSheet(curMonth),`実施記録（${curMonth}月）`);
+  }
+
   const fname=`${S.year}年度_${S.cls||'クラス未設定'}_${curMonth}月第${curWeek}週_週案.xlsx`;
   XLSX.writeFile(wb,fname);
 }
@@ -2748,45 +3702,228 @@ function initYearSel(){
   }
   sel.onchange=()=>{S.year=+sel.value;save();};
 }
+// ─── 【STEP1-B】起動画面制御 ─────────────────────────────────────
+function showStartupScreen(){
+  document.getElementById('startup-overlay').classList.add('on');
+}
+function hideStartupScreen(){
+  document.getElementById('startup-overlay').classList.remove('on');
+}
+
+// ─── 【STEP1-C】セットアップモーダル ─────────────────────────────
+function renderSetupBody(){
+  const mode=S.koury.mode||'normal';
+  const locked=S.gradeSet;
+  const isSenka=mode==='senka';
+  const modeLabel=mode==='normal'?'通常学級':mode==='senka'?'専科':'特別支援学級';
+
+  // モード選択部分
+  const modeHtml=locked
+    ?`<div class="setup-locked-val">🏫 ${modeLabel}</div>
+       <div class="setup-lock-note">学級タイプと学年はデータ読み込み時に設定済みです。<br>変更する場合は「週案を新規作成する」からやり直してください。</div>`
+    :`<div class="setup-mode-btns">
+        <button class="setup-mode-btn${mode==='normal'?' on':''}" data-mode="normal">通常学級</button>
+        <button class="setup-mode-btn${mode==='tokushi'?' on':''}" data-mode="tokushi">特別支援学級</button>
+        <button class="setup-mode-btn${mode==='senka'?' on':''}" data-mode="senka">専科</button>
+      </div>`;
+
+  // 学年・クラス部分
+  let gradeHtml='';
+  if(!locked&&!isSenka){
+    const classOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===S.classNum?'selected':''}>${n}組</option>`).join('');
+    gradeHtml=`<div class="setup-sec">
+      <label class="setup-lbl">学年・クラス <small>※設定後は変更できません</small></label>
+      <div class="setup-grade-row">
+        <select id="setup-grade" class="setup-sel">
+          <option value="">── 選択してください ──</option>
+          ${[1,2,3,4,5,6].map(g=>`<option value="${g}">${g}年</option>`).join('')}
+        </select>
+        <select id="setup-classnum" class="setup-sel">${classOpts}</select>
+      </div>
+    </div>`;
+  } else if(locked&&!isSenka&&typeof S.grade==='number'){
+    gradeHtml=`<div class="setup-sec">
+      <label class="setup-lbl">学年・クラス</label>
+      <div class="setup-locked-val">${S.grade}年 ${S.classNum}組</div>
+    </div>`;
+  }
+
+  document.getElementById('setup-body').innerHTML=`
+    <div class="setup-sec">
+      <label class="setup-lbl">学級タイプ${!locked?' <small>※設定後は変更できません</small>':''}</label>
+      ${modeHtml}
+    </div>
+    ${gradeHtml}
+    <div class="setup-sec">
+      <label class="setup-lbl">表示名 <small>印刷・ファイル名に使用</small></label>
+      <input id="setup-cls" type="text" class="setup-inp"
+        placeholder="${mode==='senka'?'例：専科1':'例：3年2組'}" value="${escHtml(S.cls||'')}">
+    </div>
+    <div class="setup-sec">
+      <label class="setup-lbl">担任名</label>
+      <input id="setup-teacher" type="text" class="setup-inp"
+        placeholder="担任名を入力" value="${escHtml(S.teacher||'')}">
+    </div>`;
+
+  // モードボタンのイベント（未ロック時のみ）
+  if(!locked){
+    document.querySelectorAll('.setup-mode-btn').forEach(btn=>{
+      btn.onclick=()=>{
+        const prevMode=S.koury.mode;
+        S.koury.mode=btn.dataset.mode;
+        // 専科選択時：表示名を自動入力（未入力または自動入力値のみ上書き）
+        if(btn.dataset.mode==='senka'){
+          if(!S.cls||S.cls==='専科'||/^専科\d+$/.test(S.cls)) S.cls='専科';
+        }
+        // 専科から他モードへ切替時：自動入力した専科名をクリア
+        if(prevMode==='senka'&&btn.dataset.mode!=='senka'){
+          if(S.cls==='専科'||/^専科\d+$/.test(S.cls)) S.cls='';
+        }
+        renderSetupBody();
+        checkSetupOk();
+      };
+    });
+    const gradeEl=document.getElementById('setup-grade');
+    if(gradeEl) gradeEl.onchange=()=>checkSetupOk();
+    const classnumEl=document.getElementById('setup-classnum');
+    if(classnumEl) classnumEl.onchange=()=>checkSetupOk();
+  }
+  document.getElementById('setup-cls').oninput=e=>{S.cls=e.target.value;checkSetupOk();};
+  document.getElementById('setup-teacher').oninput=e=>{S.teacher=e.target.value;checkSetupOk();};
+}
+
+function checkSetupOk(){
+  const mode=S.koury.mode;
+  const isSenka=mode==='senka';
+  const gradeEl=document.getElementById('setup-grade');
+  const gradeOk=isSenka||S.gradeSet||(gradeEl&&+gradeEl.value>0);
+  const allOk=!!(mode&&gradeOk&&S.cls.trim()&&S.teacher.trim());
+  const btn=document.getElementById('setup-ok');
+  if(btn) btn.classList.toggle('ready',allOk);
+}
+
+function showSetupModal(){
+  hideStartupScreen();
+  renderSetupBody();
+  document.getElementById('setup-overlay').classList.add('on');
+  document.getElementById('setup-save-msg').style.display='none';
+  checkSetupOk();
+
+  // キャンセル（起動画面に戻る）
+  document.getElementById('setup-cancel').onclick=()=>{
+    // S をデフォルトにリセット（途中入力をクリア）
+    S.koury.mode='normal';
+    S.grade=3;S.classNum=1;S.gradeSet=false;
+    S.cls='';S.teacher='';
+    document.getElementById('inp-class').value='';
+    document.getElementById('inp-teacher').value='';
+    document.getElementById('setup-overlay').classList.remove('on');
+    showStartupScreen();
+  };
+
+  // OK → 値を確定 → saveToFile → _enterAppInternal
+  document.getElementById('setup-ok').onclick=async()=>{
+    if(!document.getElementById('setup-ok').classList.contains('ready')) return;
+    // 学年・クラス・モードを確定
+    const gradeEl=document.getElementById('setup-grade');
+    const classnumEl=document.getElementById('setup-classnum');
+    if(S.koury.mode==='senka'){
+      S.grade='senka';S.gradeSet=true;S.classNum=null;S.subjects=[];
+    } else if(gradeEl&&+gradeEl.value>0){
+      S.grade=+gradeEl.value;S.gradeSet=true;
+      const classType=S.koury.mode==='normal'?'normal':'tokushi';
+      S.subjects=defSubjectsForGrade(S.grade,classType);
+    }
+    if(classnumEl&&+classnumEl.value>0) S.classNum=+classnumEl.value;
+    // ヘッダー更新
+    document.getElementById('inp-class').value=S.cls;
+    document.getElementById('inp-teacher').value=S.teacher;
+    // 保存処理
+    await _setupSaveAndEnter();
+  };
+
+  // 再試行
+  document.getElementById('setup-save-retry').onclick=async()=>await _setupSaveAndEnter();
+}
+
+async function _setupSaveAndEnter(){
+  const msgBox=document.getElementById('setup-save-msg');
+  const msgText=document.getElementById('setup-save-msg-text');
+  msgBox.style.display='none';
+  try{
+    await _doSaveToFile();
+    _enterAppInternal();
+  }catch(e){
+    if(e.name==='AbortError'){
+      msgText.textContent='保存をキャンセルしました。データを保護するために保存してから開始することをお勧めします。';
+    } else {
+      msgText.textContent='保存に失敗しました：'+e.message;
+    }
+    msgBox.style.display='block';
+  }
+}
+
+// 起動画面を抜けてメインUIへ移行（必須項目チェック済み）
+function _enterAppInternal(){
+  appStarted=true;
+  hasUnsavedChanges=false; // 読み込み直後・新規作成直後は差分なし
+  hideStartupScreen();
+  document.getElementById('setup-overlay').classList.remove('on');
+  const m=new Date().getMonth()+1;
+  curMonth=m;curSem=semOf(m);
+  curWeek=validWeeksForMonth(m)[0]||1;
+  document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
+  const at=document.querySelector(`.stab[data-sem="${curSem}"]`);
+  if(at)at.classList.add('on');
+  showView('sem');setSem(curSem);
+  updateSaveStatus();
+  document.getElementById('week-nav-btns').style.display='flex';
+}
+
+// 起動画面→必須項目チェック→メインUIへのルーター
+function enterApp(){
+  if(getMissingRequired().length>0){
+    showSetupModal();
+    return;
+  }
+  _enterAppInternal();
+}
 function init(){
-  load();
   const td=new Date();
   document.getElementById('hd-today').textContent=`${td.getFullYear()}年${td.getMonth()+1}月${td.getDate()}日`;
   initYearSel();
   document.getElementById('inp-class').value=S.cls||'';
   document.getElementById('inp-teacher').value=S.teacher||'';
-  document.getElementById('inp-class').oninput=e=>{S.cls=e.target.value;save();updateRequiredFieldStyles();checkSetupRequired();};
-  document.getElementById('inp-teacher').oninput=e=>{S.teacher=e.target.value;save();updateRequiredFieldStyles();checkSetupRequired();};
+  document.getElementById('inp-class').oninput=e=>{S.cls=e.target.value;save();};
+  document.getElementById('inp-teacher').oninput=e=>{S.teacher=e.target.value;save();};
   // ヘッダーボタン
   document.getElementById('btn-save-file').onclick=()=>saveToFile();
   document.getElementById('btn-open-file').onclick=()=>loadFromFile();
   document.getElementById('btn-print').onclick=()=>printWeek();
   document.getElementById('btn-print-student').onclick=()=>printForStudents();
   document.getElementById('btn-excel').onclick=()=>exportExcel();
+  document.getElementById('btn-prev-week').onclick=()=>prevWeekNav();
+  document.getElementById('btn-today').onclick=()=>gotoToday();
+  document.getElementById('btn-next-week').onclick=()=>nextWeekNav();
   initResizer();
-  // JSON保存ガイダンス
-  document.getElementById('json-banner-save').onclick=()=>saveToFile();
-  document.getElementById('json-banner-close').onclick=()=>hideBanner();
-  document.getElementById('setup-banner-go').onclick=()=>{
-    // 設定タブの学級・交流設定を開く
-    document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
-    document.querySelector('.stab[data-view="cfg"]').classList.add('on');
-    curCfgTab='koury';
-    showView('cfg');
+  document.getElementById('mb-reload').onclick=()=>{hideMismatchBanner();loadFromFile();};
+  document.getElementById('mb-continue').onclick=()=>dimMismatchBanner();
+  // 終了ボタン
+  document.getElementById('btn-exit').onclick=async()=>{
+    if(!appStarted) return;
+    if(hasUnsavedChanges){
+      if(confirm('保存されていない変更があります。保存してから終了しますか？')){
+        await saveToFile();
+        if(!hasUnsavedChanges) alert('保存が完了しました。タブを閉じてください。');
+      }
+    } else {
+      alert('保存済みです。タブを閉じてください。');
+    }
   };
-  startJsonStatusTimer();
-  checkBannerOnStartup();
-  updateRequiredFieldStyles(); // ヘッダー必須入力欄の初期警告スタイル
-  enforceSetupIfNeeded();      // 必須項目チェック・誘導
   // セムバー
   document.querySelectorAll('.stab').forEach(t=>{
     t.onclick=()=>{
       const v=t.dataset.view;
-      // ⑤ 学年未設定時は週案・集計への遷移をブロック
-      if(!S.gradeSet&&(v==='sem'||v==='year')){
-        enforceSetupIfNeeded();
-        return;
-      }
       document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
       t.classList.add('on');
       if(v==='cfg') showView('cfg');
@@ -2830,14 +3967,23 @@ function init(){
     if(e.key==='Escape')closeModal();
     if(e.key==='Enter'&&!e.shiftKey&&document.getElementById('modal-bg').classList.contains('on')){e.preventDefault();saveModal();}
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveToFile();}
+    if(e.key==='Shift') window._scheduleShiftDown=true;
   });
-  // 初期表示：現在学期
-  const m=td.getMonth()+1;
-  curMonth=m;curSem=semOf(m);
-  curWeek=validWeeksForMonth(m)[0]||1;
-  const activeTab=document.querySelector(`.stab[data-sem="${curSem}"]`);
-  if(activeTab)activeTab.classList.add('on');
-  showView('sem');setSem(curSem);
+  // Shiftキー状態追跡（行事予定スケジュール表の範囲選択用・init()で一度だけ登録）
+  window._scheduleShiftDown=false;
+  document.addEventListener('keyup',e=>{if(e.key==='Shift') window._scheduleShiftDown=false;});
+  // 未保存時のタブ閉じ警告
+  window.addEventListener('beforeunload',e=>{
+    if(appStarted&&hasUnsavedChanges){
+      e.preventDefault();
+      e.returnValue=''; // Chrome要件
+    }
+  });
+  // 起動画面ボタン
+  document.getElementById('startup-load').onclick=()=>loadFromFile();
+  document.getElementById('startup-new').onclick=()=>enterApp();
+  // 起動画面を表示してスタート
+  showStartupScreen();
 }
 init();
 
@@ -2846,21 +3992,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js')
       .catch(err => console.warn('SW registration failed:', err));
-  });
-}
-
-// ─── File Handling API（RC3）：.sw4/.jsonファイルのダブルクリック起動 ─
-if ('launchQueue' in window) {
-  window.launchQueue.setConsumer(async launchParams => {
-    if (!launchParams.files || !launchParams.files.length) return;
-    const fh = launchParams.files[0];
-    try {
-      const file = await fh.getFile();
-      const text = await file.text();
-      applyJsonData(text, fh);
-    } catch(e) {
-      alert('ファイルを開けませんでした：' + e.message);
-    }
   });
 }
 </script>
