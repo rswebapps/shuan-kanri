@@ -26,8 +26,7 @@
     {
       "action": "/shuan-kanri/",
       "accept": {
-        "application/x-shuan": [".sw4"],
-        "application/json": [".json"]
+        "application/x-shuan": [".sw4"]
       }
     }
   ]

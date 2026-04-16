@@ -493,6 +493,16 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   font-family:inherit;margin-top:8px;transition:background .2s}
 #setup-ok.ready{background:var(--blue);cursor:pointer}
 #setup-ok.ready:hover{background:#155fa0}
+/* PWAステータスインジケーター（セムバー右端） */
+#hd-pwa-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;
+  white-space:nowrap;cursor:default;display:none;margin-left:auto;align-self:center;
+  transition:background .2s}
+#hd-pwa-status.browser{display:block;background:#f0f2f6;color:var(--muted)}
+#hd-pwa-status.ok{display:block;background:#e8f5e9;color:#2e7d32}
+#hd-pwa-status.update{display:block;background:#ffebee;color:#c62828;
+  cursor:pointer;animation:blink 2s infinite}
+#hd-pwa-status.update:hover{background:#ffcdd2}
+#hd-pwa-status.checking{display:block;background:#f0f2f6;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -549,6 +559,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <div class="stab" data-sem="2" data-view="sem">2学期（9〜12月）</div>
   <div class="stab" data-sem="3" data-view="sem">3学期（1〜3月）</div>
   <div class="stab" data-sem="year" data-view="year">📊 集計</div>
+  <span id="hd-pwa-status"></span>
 </div>
 
 <div id="mbar" style="display:none"></div>
@@ -781,6 +792,7 @@ let db={};
 let fileHandle=null; // File System Access API ハンドル（セッション中のみ保持）
 let appStarted=false; // 起動画面を抜けたらtrue
 let hasUnsavedChanges=false; // 最後のファイル保存以降に変更があればtrue
+let _loadedFromJson=false; // JSONファイルから読み込んだ場合true（sw4保存時の案内用）
 let curView='sem',curSem='1',curMonth=4,curWeek=1,curCfgTab='slots',jisuuTab='week',jisuuSubTab='count',curSumTab='1';
 // ─── 【1-1】モーダル状態を mstate に一元管理 ─────────────────────
 let mstate={slotId:null,dk:null,m:null,w:null,
@@ -939,7 +951,7 @@ function makeJsonData(){
 }
 function makeFileName(){
   const cls=S.cls||'クラス未設定';
-  return `${S.year}年度_${cls}_週案データ.json`;
+  return `${S.year}年度_${cls}_週案データ.sw4`;
 }
 // 常にエクスプローラを開いて保存（前回フォルダを記憶・初回はマイドキュメント）
 // 保存処理の共通ロジック（エラーをそのまま投げる）
@@ -949,10 +961,10 @@ async function _doSaveToFile(){
   if(window.showSaveFilePicker){
     const opts={
       suggestedName:makeFileName(),
-      types:[{description:'週案データ',accept:{'application/json':['.json']}}]
+      types:[{description:'週案データ (SW4)',accept:{'application/x-shuan':['.sw4']}}]
     };
     opts.startIn=fileHandle||'documents';
-    fileHandle=await window.showSaveFilePicker(opts); // 失敗・AbortErrorはそのまま投げる
+    fileHandle=await window.showSaveFilePicker(opts);
     const writable=await fileHandle.createWritable();
     await writable.write(blob);
     await writable.close();
@@ -971,6 +983,15 @@ async function _doSaveToFile(){
   }
 }
 async function saveToFile(){
+  if(_loadedFromJson){
+    alert(
+      '読み込んだファイルは JSON 形式（.json）です。\n\n'+
+      '保存すると SW4 形式（.sw4）の新しいファイルが作成されます。\n'+
+      'ファイルが2つになりますので、今後は更新日時が新しい SW4 ファイルを使用してください。\n\n'+
+      '※ファイルの拡張子が表示されていない場合は、ファイル名やアイコンで区別してください。'
+    );
+    _loadedFromJson=false;
+  }
   try{
     await _doSaveToFile();
   }catch(e){
@@ -995,25 +1016,41 @@ async function saveAndReload(){
 async function loadFromFile(){
   if(window.showOpenFilePicker){
     try{
-      const opts={types:[{description:'週案データ',accept:{'application/json':['.json']}}]};
-      if(fileHandle) opts.startIn=fileHandle; // 前回と同じフォルダを最初に表示
+      const opts={types:[{description:'週案データ',accept:{
+        'application/x-shuan':['.sw4'],
+        'application/json':['.json']
+      }}]};
+      if(fileHandle) opts.startIn=fileHandle;
       const [fh]=await window.showOpenFilePicker(opts);
       const file=await fh.getFile();
       const text=await file.text();
+      _checkJsonToSw4Migration(file.name);
       applyJsonData(text,fh);
     }catch(e){
       if(e.name!=='AbortError') alert('ファイルを開けませんでした：'+e.message);
     }
   } else {
     const inp=document.createElement('input');
-    inp.type='file';inp.accept='.json';
+    inp.type='file';inp.accept='.sw4,.json';
     inp.onchange=async()=>{
       const file=inp.files[0];if(!file)return;
       const text=await file.text();
+      _checkJsonToSw4Migration(file.name);
       applyJsonData(text,null);
     };
     inp.click();
   }
+}
+// JSON読み込み時の移行案内（一回限り）+ フラグ管理
+function _checkJsonToSw4Migration(filename){
+  if(!filename.toLowerCase().endsWith('.json')) return;
+  _loadedFromJson=true;
+  alert(
+    '読み込んだファイルは JSON 形式（.json）です。\n\n'+
+    '保存時は新しい SW4 形式（.sw4）で保存されます。\n'+
+    'ファイルが2つになりますので、常に更新日時が新しい方を使用してください。\n\n'+
+    '※ファイルの拡張子が表示されていない場合は、ファイル名やアイコンで区別してください。'
+  );
 }
 function applyJsonData(text,fh){
   try{
@@ -2132,62 +2169,127 @@ function appendSchedule(iso,title){
     S.schedule[iso]=norm;
   }
 }
+// ─── PWA ステータス管理 ──────────────────────────────────────────
+let _swHasUpdate=false; // 更新待機中フラグ（renderCfgAppと共有）
+
+function _isPwa(){
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone===true;
+}
+function _setPwaStatus(state, text, onclick=null){
+  const el=document.getElementById('hd-pwa-status');
+  if(!el) return;
+  el.className=state;
+  el.textContent=text;
+  el.onclick=onclick;
+}
+async function initPwaStatus(){
+  const el=document.getElementById('hd-pwa-status');
+  if(!el) return;
+  if(!_isPwa()){
+    _setPwaStatus('browser','ブラウザ版で起動中');
+    return;
+  }
+  _setPwaStatus('checking','確認中...');
+  if(!('serviceWorker' in navigator)){
+    _setPwaStatus('ok','最新バージョンです');
+    return;
+  }
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();
+    if(!reg){_setPwaStatus('ok','最新バージョンです');return;}
+    await reg.update();
+    // 既に待機中のSWがあるか確認
+    if(reg.waiting){
+      _swHasUpdate=true;
+      _setPwaStatus('update','アップデートしてください',_openAppTab);
+      return;
+    }
+    // 新しいSWが見つかった場合のリスナー
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller){
+          _swHasUpdate=true;
+          _setPwaStatus('update','アップデートしてください',_openAppTab);
+        }
+      });
+    });
+    _setPwaStatus('ok','最新バージョンです');
+  }catch(e){
+    _setPwaStatus('ok','最新バージョンです');
+  }
+}
+function _openAppTab(){
+  document.querySelectorAll('.stab').forEach(x=>x.classList.remove('on'));
+  document.querySelector('.stab[data-view="cfg"]')?.classList.add('on');
+  curCfgTab='app';
+  showView('cfg');
+}
 // ─── SETTINGS: APP MANAGEMENT ────────────────────────────────────
 function renderCfgApp(){
-  const isPwa=window.matchMedia('(display-mode: standalone)').matches
-    ||window.navigator.standalone===true;
+  const isPwa=_isPwa();
+  const browserNote=isPwa?'':'<div class="cfg-note" style="color:#e65100">⚠ 現在ブラウザ版で起動しています。この機能はPWAとしてインストールした場合にのみ動作します。</div>';
+
+  // アップデートボタン：更新待機中かどうかで切り替え
+  const updateBtn=_swHasUpdate
+    ?`<button class="btn-save" id="btn-sw-check" style="background:#c62828">🔴 アップデートする</button>`
+    :`<button class="btn-save" id="btn-sw-check" style="background:var(--blue)">🔄 更新を確認する</button>`;
+
   document.getElementById('cfg-body').innerHTML=`
   <div class="cfg-sec">
     <h3>アップデート</h3>
-    <div class="cfg-note">新しいバージョンが公開されている場合、確認・適用できます。</div>
+    ${browserNote}
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <button class="btn-save" id="btn-sw-check" style="background:var(--blue)">🔄 更新を確認する</button>
-      <span id="sw-status" style="font-size:12px;color:var(--muted)">ボタンを押して確認してください</span>
+      ${updateBtn}
+      <span id="sw-status" style="font-size:12px;color:var(--muted)">${
+        _swHasUpdate?'<span style="color:#c62828;font-weight:700">✦ 新しいバージョンがあります</span>'
+        :'ボタンを押して確認してください'
+      }</span>
     </div>
   </div>
   <div class="cfg-sec">
     <h3>アンインストール</h3>
+    ${browserNote}
     <div class="cfg-note">
       Service Worker の登録を解除し、キャッシュを削除します。<br>
       ショートカットからは引き続き開けますが、再インストールするまでブラウザ版として動作します。
     </div>
-    <button class="btn-save" id="btn-sw-uninstall" style="background:#c62828">🗑 アンインストール</button>
+    <button class="btn-save" id="btn-sw-uninstall" style="background:#c62828" ${!isPwa?'disabled style="background:#c62828;opacity:.4"':''}>🗑 アンインストール</button>
   </div>`;
 
-  // ─ 更新確認 ─
+  // ─ アップデートボタン ─
   document.getElementById('btn-sw-check').onclick=async()=>{
+    if(!isPwa) return;
     const statusEl=document.getElementById('sw-status');
     const btn=document.getElementById('btn-sw-check');
-    if(!('serviceWorker' in navigator)){
-      statusEl.textContent='⚠ このブラウザはService Workerに対応していません';
+    // 既に更新待機中 → 即アップデート
+    if(_swHasUpdate){
+      const reg=await navigator.serviceWorker.getRegistration();
+      if(reg?.waiting){reg.waiting.postMessage({type:'SKIP_WAITING'});window.location.reload();}
       return;
     }
-    statusEl.textContent='確認中...';
-    btn.disabled=true;
+    statusEl.textContent='確認中...';btn.disabled=true;
     try{
       const reg=await navigator.serviceWorker.getRegistration();
-      if(!reg){statusEl.textContent='⚠ Service Workerが登録されていません（ブラウザ版で動作中）';btn.disabled=false;return;}
+      if(!reg){statusEl.textContent='⚠ Service Workerが登録されていません';btn.disabled=false;return;}
       await reg.update();
       if(reg.waiting){
-        statusEl.innerHTML='<span style="color:#e65100;font-weight:700">✦ 新しいバージョンがあります</span>';
-        btn.textContent='🔄 更新して再起動';
-        btn.disabled=false;
-        btn.onclick=()=>{
-          reg.waiting.postMessage({type:'SKIP_WAITING'});
-          window.location.reload();
-        };
+        _swHasUpdate=true;
+        _setPwaStatus('update','アップデートしてください',_openAppTab);
+        renderCfgApp(); // ボタンを赤に切り替えて再描画
       } else {
-        statusEl.innerHTML='<span style="color:var(--col-pos)">✓ 最新版です</span>';
+        statusEl.innerHTML='<span style="color:var(--col-pos)">✓ 最新バージョンです</span>';
         btn.disabled=false;
       }
     }catch(e){
-      statusEl.textContent='エラー：'+e.message;
-      btn.disabled=false;
+      statusEl.textContent='エラー：'+e.message;btn.disabled=false;
     }
   };
 
-  // ─ アンインストール ─
+  // ─ アンインストールボタン ─
   document.getElementById('btn-sw-uninstall').onclick=()=>{
+    if(!isPwa) return;
     const ok=confirm(
       'アンインストールします。よろしいですか？\n\n'+
       '※ 今後もショートカットから開けますが、再びインストールするまでブラウザ版で動作します。\n'+
@@ -3956,6 +4058,7 @@ function _enterAppInternal(){
   showView('sem');setSem(curSem);
   updateSaveStatus();
   document.getElementById('week-nav-btns').style.display='flex';
+  initPwaStatus(); // PWA/ブラウザ判定・バージョン確認
 }
 
 // 起動画面→必須項目チェック→メインUIへのルーター
