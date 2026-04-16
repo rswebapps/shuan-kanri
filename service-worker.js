@@ -2,7 +2,7 @@
 // 戦略：Network First（常にネットワーク優先）
 // RC3以降の改修でservice-worker.jsの変更は原則不要
 
-const CACHE_NAME = 'shuan-v4-rc3';
+const CACHE_NAME = 'shuan-v4-rc4';
 const FALLBACK_URLS = [
   './index.html',
   './manifest.json',
