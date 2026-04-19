@@ -96,7 +96,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
 .wbtn.on{background:var(--blue);color:#fff}
 #wdate{padding:3px 7px;border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:12px}
 .wbar-note{font-size:10px;color:var(--muted)}
-.pat-wrap{position:relative;margin-left:auto}
+.pat-wrap{position:relative}
 .pat-btn{padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:4px;
   font-size:11px;cursor:pointer;font-family:inherit;color:var(--text)}
 .pat-btn:hover{border-color:var(--blue);color:var(--blue)}
@@ -569,7 +569,9 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <label style="font-size:11px;color:var(--muted)">月曜</label>
   <input type="date" id="wdate">
   <span class="wbar-note" id="wbar-note"></span>
-  <div class="pat-wrap" style="display:flex;gap:6px">
+  <!-- 土日ボタンはrefreshWbar()がここに挿入 (#wbar-day-btns) -->
+  <div id="wbar-tools" style="display:flex;align-items:center;gap:4px;margin-left:6px;flex-shrink:0">
+    <span style="color:var(--border);margin:0 2px">|</span>
     <div style="position:relative">
       <button class="pat-btn" id="psave-btn">💾 パターン保存 ▾</button>
       <div class="pat-menu" id="psave-menu"></div>
@@ -578,14 +580,14 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
       <button class="pat-btn" id="pload-btn">📂 インポート ▾</button>
       <div class="pat-menu" id="pload-menu"></div>
     </div>
-  </div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0">
     <span style="color:var(--border);margin:0 2px">|</span>
     <button class="pat-btn" id="btn-print">🖋 週案印刷</button>
     <button class="pat-btn" id="btn-print-student">✏️ 児童用時間割印刷</button>
     <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text);white-space:nowrap;cursor:pointer;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:#fff">
       <input type="checkbox" id="chk-hira" style="accent-color:var(--blue);width:12px;height:12px"> ひらがな
     </label>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0">
     <button class="pat-btn" id="btn-excel">📊 レポート出力（Excel）</button>
   </div>
 </div>
@@ -3377,7 +3379,7 @@ function refreshWbar(){
     dayBtns=document.createElement('div');
     dayBtns.id='wbar-day-btns';
     dayBtns.style.cssText='display:flex;gap:4px;margin-left:4px;';
-    document.getElementById('wbar').insertBefore(dayBtns,document.querySelector('.pat-wrap'));
+    document.getElementById('wbar').insertBefore(dayBtns,document.getElementById('wbar-tools'));
   }
   dayBtns.innerHTML=`
     <button id="btn-sat" class="wbtn${S.showSat?' on':''}"
