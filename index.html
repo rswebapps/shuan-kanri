@@ -138,6 +138,12 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
   border-radius:4px;font-size:12px;font-family:inherit;max-width:120px}
 .cfg-tbl input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--blue)}
 .rbtn{padding:2px 7px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid}
+.vac-workdays{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px}
+.vac-wd-item{display:flex;align-items:center;gap:2px;background:#f0f4f9;border-radius:4px;padding:2px 4px}
+.vac-wd-item input[type=date]{font-size:11px;border:1px solid var(--border);border-radius:3px;padding:1px 3px;font-family:inherit}
+.vac-add-btn{padding:2px 8px;font-size:11px;background:#e8f2fc;color:var(--blue);border:1px solid #bdd6f0;border-radius:4px;cursor:pointer;font-family:inherit}
+.vac-add-btn:disabled{opacity:.4;cursor:default}
+.vac-del-btn{background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;padding:0 2px;line-height:1}
 .rbtn-up,.rbtn-dn{background:#e8f2fc;color:var(--blue);border-color:#bdd6f0}
 .rbtn-del{background:#ffebee;color:#c62828;border-color:#ffcdd2}
 .btn-add{padding:5px 12px;background:var(--blue);color:#fff;border:none;
@@ -786,8 +792,16 @@ function defKoury(){
 function defPatterns(){return [{name:'',cells:{}},{name:'',cells:{}},{name:'',cells:{}},{name:'',cells:{}},{name:'',cells:{}}];}
 
 // ─── STATE ───────────────────────────────────────────────────────
+function defVacation(){
+  return {
+    spring: {start:'',end:'',workdays:[]},
+    summer: {start:'',end:'',workdays:[]},
+    winter: {start:'',end:'',workdays:[]},
+    yearend:{start:'',end:'',workdays:[]}
+  };
+}
 let S={year:curAcYear(),grade:3,classNum:1,gradeSet:false,cls:'',teacher:'',yearTotalWeeks:35,showSat:true,showSun:false,
-       schedule:{},
+       schedule:{},vacation:null,
        subjects:defSubjects(),slots:defSlots(),patterns:defPatterns(),koury:defKoury()};
 let db={};
 let fileHandle=null; // File System Access API ハンドル（セッション中のみ保持）
@@ -939,9 +953,26 @@ function dateInMonth(dateStr,month){
   const d=new Date(dateStr);
   return d.getMonth()+1===month;
 }
+
+// ─── 長期休業：週数カウント除外判定 ─────────────────────────────
+// 週の月〜金が全日いずれかの休業期間の範囲内 → 除外対象
+function isVacationWeek(year,month,week){
+  if(!S.vacation) return false;
+  const monday=calcMonday(year,month,week);
+  const friday=new Date(monday);friday.setDate(monday.getDate()+4);
+  const monStr=localDateStr(monday);
+  const friStr=localDateStr(friday);
+  return Object.values(S.vacation).some(v=>{
+    if(!v.start||!v.end) return false;
+    return monStr>=v.start && friStr<=v.end;
+  });
+}
+
 function validWeeksForMonth(month){
   const ws=[];
-  for(let w=1;w<=6;w++) if(isValidWeek(S.year,month,w)) ws.push(w);
+  for(let w=1;w<=6;w++){
+    if(isValidWeek(S.year,month,w)&&!isVacationWeek(S.year,month,w)) ws.push(w);
+  }
   return ws;
 }
 
@@ -1060,8 +1091,9 @@ function applyJsonData(text,fh){
     // フィールドを先にリセットしてからJSONを適用
     S.grade=3; S.classNum=1; S.gradeSet=false;
     const hadGrade=parsed.cfg.grade!=null;
-    const keys=['year','grade','classNum','gradeSet','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','subjects','slots','patterns','koury'];
+    const keys=['year','grade','classNum','gradeSet','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','vacation','subjects','slots','patterns','koury'];
     keys.forEach(k=>{if(parsed.cfg[k]!=null)S[k]=parsed.cfg[k];});
+    // vacation 未設定の旧ファイルは null のまま（後方互換）
     if(!hadGrade) S.gradeSet=false; // 旧v4 JSONはgradeなし → 未設定確定
     S.subjects.forEach(s=>{if(s.planStd==null)s.planStd=0;});
     migrateSlotLabels();
@@ -1654,6 +1686,118 @@ function renderCfgSlots(){
   document.querySelectorAll('.sl-n').forEach(inp=>inp.oninput=()=>{S.slots[+inp.dataset.i].modN=+inp.value||3;save();});
   document.querySelectorAll('.sl-act').forEach(cb=>cb.onchange=()=>{S.slots[+cb.dataset.i].active=cb.checked;save();});
   document.querySelectorAll('.pat-nm').forEach(inp=>inp.oninput=()=>{S.patterns[+inp.dataset.i].name=inp.value;save();});
+  renderVacationSection();
+}
+
+// ─── 長期休業設定セクション ───────────────────────────────────────
+const VAC_KEYS=[
+  {key:'spring', label:'学年始'},
+  {key:'summer', label:'夏季'},
+  {key:'winter', label:'冬季'},
+  {key:'yearend',label:'学年末'}
+];
+function renderVacationSection(){
+  const existing=document.getElementById('vac-sec');
+  if(existing) existing.remove();
+  const container=document.createElement('div');
+  container.className='cfg-sec';
+  container.id='vac-sec';
+
+  if(!S.vacation){
+    container.innerHTML=`
+      <h3>長期休業設定</h3>
+      <div class="cfg-note" style="border-left-color:#e65100;color:#7a4000">
+        ⚙ 長期休業期間を設定すると、計画実施時数・計画率・標準率の計算精度が向上します（任意設定）
+      </div>
+      <button class="btn-add" id="btn-vac-init">長期休業設定を開始する</button>`;
+    document.getElementById('cfg-body').appendChild(container);
+    document.getElementById('btn-vac-init').onclick=()=>{
+      S.vacation=defVacation();save();renderVacationSection();
+    };
+    return;
+  }
+
+  // 行生成
+  function buildWdHtml(key){
+    const wds=S.vacation[key].workdays||[];
+    let html='<div class="vac-workdays" id="vac-wd-'+key+'">';
+    wds.forEach((d,i)=>{
+      html+=`<span class="vac-wd-item">
+        <input type="date" class="vac-wd-input" data-vk="${key}" data-wi="${i}" value="${d}">
+        <button class="vac-del-btn" data-vk="${key}" data-wi="${i}" title="削除">×</button>
+      </span>`;
+    });
+    const disabled=wds.length>=10?'disabled':'';
+    html+=`<button class="vac-add-btn" data-vk="${key}" ${disabled}>＋授業日</button>`;
+    html+='</div>';
+    return html;
+  }
+
+  let rows='';
+  VAC_KEYS.forEach(({key,label})=>{
+    const v=S.vacation[key];
+    rows+=`<tr>
+      <td style="white-space:nowrap;font-weight:700">${label}</td>
+      <td><input type="date" class="vac-start" data-vk="${key}" value="${v.start||''}"></td>
+      <td><input type="date" class="vac-end"   data-vk="${key}" value="${v.end||''}"></td>
+      <td>${buildWdHtml(key)}</td>
+    </tr>`;
+  });
+
+  container.innerHTML=`
+    <h3>長期休業設定</h3>
+    <div class="cfg-note">
+      長期休業中の週（月〜金が全日休業範囲内）は実施率の計算対象週数から除外されます。<br>
+      長期休業中授業日は時間割入力に使用できますが、週数カウントには反映されません。
+    </div>
+    <table class="cfg-tbl">
+      <thead><tr><th>休業</th><th>開始日</th><th>終了日</th><th>長期休業中授業日（最大10日／週数カウント対象外）</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:10px">
+      <button class="rbtn" id="btn-vac-reset" style="background:#ffebee;color:#c62828;border-color:#ffcdd2">長期休業設定をリセット</button>
+    </div>`;
+
+  document.getElementById('cfg-body').appendChild(container);
+
+  // イベント：開始日・終了日
+  container.querySelectorAll('.vac-start,.vac-end').forEach(inp=>{
+    inp.onchange=()=>{
+      const vk=inp.dataset.vk;
+      if(inp.classList.contains('vac-start')) S.vacation[vk].start=inp.value;
+      else S.vacation[vk].end=inp.value;
+      save();
+    };
+  });
+  // イベント：授業日 input
+  container.querySelectorAll('.vac-wd-input').forEach(inp=>{
+    inp.onchange=()=>{
+      S.vacation[inp.dataset.vk].workdays[+inp.dataset.wi]=inp.value;
+      save();
+    };
+  });
+  // イベント：授業日 追加
+  container.querySelectorAll('.vac-add-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const vk=btn.dataset.vk;
+      if((S.vacation[vk].workdays||[]).length>=10) return;
+      S.vacation[vk].workdays.push('');
+      save();renderVacationSection();
+    };
+  });
+  // イベント：授業日 削除
+  container.querySelectorAll('.vac-del-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const vk=btn.dataset.vk,wi=+btn.dataset.wi;
+      S.vacation[vk].workdays.splice(wi,1);
+      save();renderVacationSection();
+    };
+  });
+  // イベント：リセット
+  document.getElementById('btn-vac-reset').onclick=()=>{
+    if(!confirm('長期休業設定をすべてリセットします。よろしいですか？')) return;
+    S.vacation=null;save();renderVacationSection();
+  };
 }
 
 // ─── SETTINGS: KOURY ─────────────────────────────────────────────
@@ -2488,7 +2632,7 @@ function renderTT(){
     }
     // ─ 行事行（S.scheduleから日付キーで取得）─
     if(item.type==='schedule'){
-      rows+=`<tr><td class="memo-hd ${item.hdCls}">${item.label}</td>`;
+      rows+=`<tr><td class="memo-hd ${item.hdCls}" title="全角スペースで改行（印刷時）">${item.label}</td>`;
       for(const dk of vdk){
         const active=dkActive[dk];
         const iso=dkDate[dk];
@@ -2496,8 +2640,11 @@ function renderTT(){
         if(!active){
           rows+=`<td class="memo-cell ${item.cellCls}" style="background:#ebebeb;opacity:.5"></td>`;
         } else {
-          const displayVal=escHtml(val).replace(/\u3000/g,'<br>');
-          rows+=`<td class="memo-cell ${item.cellCls}" data-dk="${dk}"><div class="schedule-display">${displayVal}</div></td>`;
+          rows+=`<td class="memo-cell ${item.cellCls}" data-dk="${dk}">
+            <textarea class="schedule-ta" data-isodate="${iso}" data-dk="${dk}"
+              placeholder="全角スペースで改行"
+              style="width:100%;border:none;background:transparent;font-family:inherit;font-size:11px;resize:none;padding:1px 3px;outline:none;color:var(--text);min-height:20px;overflow:hidden"
+            >${escHtml(val)}</textarea></td>`;
         }
       }
       rows+='</tr>';
@@ -2623,6 +2770,16 @@ function renderTT(){
     ta.addEventListener('input',()=>{
       autoGrowTA(ta);
       setWeekMemo(curMonth,curWeek,ta.dataset.memokey,ta.value,ta.dataset.dk||null);
+    });
+  });
+  // ─ 行事行 textarea（週案タブから直接編集）─
+  document.querySelectorAll('textarea.schedule-ta').forEach(ta=>{
+    autoGrowTA(ta);
+    ta.addEventListener('input',()=>{
+      autoGrowTA(ta);
+      const iso=ta.dataset.isodate;
+      if(iso) S.schedule[iso]=ta.value;
+      save();
     });
   });
 }
@@ -3490,14 +3647,21 @@ function printWeek(skipTitle=false){
 
   // ── textarea → div に変換してテキスト全表示 ──
   const taMap=[];
-  document.querySelectorAll('#tt-wrap textarea[data-memokey], #tt-wrap textarea[data-scheduledate]').forEach(ta=>{
+  document.querySelectorAll('#tt-wrap textarea[data-memokey], #tt-wrap textarea[data-scheduledate], #tt-wrap textarea.schedule-ta').forEach(ta=>{
     const div=document.createElement('div');
     div.className='print-ta-div';
-    div.textContent=ta.value;
-    div.dataset.memokey=ta.dataset.memokey;
+    // 行事行は全角スペースを改行に変換して印刷
+    if(ta.classList.contains('schedule-ta')){
+      div.innerHTML=escHtml(ta.value).replace(/　/g,'<br>');
+    } else {
+      div.textContent=ta.value;
+    }
+    if(ta.dataset.memokey) div.dataset.memokey=ta.dataset.memokey;
+    if(ta.dataset.isodate) div.dataset.isodate=ta.dataset.isodate;
     if(ta.dataset.dk) div.dataset.dk=ta.dataset.dk;
+    if(ta.classList.contains('schedule-ta')) div.classList.add('schedule-ta-div');
     ta.parentNode.replaceChild(div,ta);
-    taMap.push({div,val:ta.value,key:ta.dataset.memokey,dk:ta.dataset.dk||null});
+    taMap.push({div,val:ta.value,key:ta.dataset.memokey||null,isodate:ta.dataset.isodate||null,dk:ta.dataset.dk||null,isSched:ta.classList.contains('schedule-ta')});
   });
 
   // ── 教科名：印刷幅に収まらない場合フォントサイズを縮小 ──
@@ -3516,17 +3680,19 @@ function printWeek(skipTitle=false){
   // ── 縮小スタイルをリセット ──
   snameMap.forEach(({el,orig})=>{el.style.fontSize=orig;el.style.whiteSpace='';});
   setTimeout(()=>{
-    taMap.forEach(({div,val,key,dk})=>{
+    taMap.forEach(({div,val,key,isodate,dk,isSched})=>{
       const ta=document.createElement('textarea');
-      ta.dataset.memokey=key;
+      if(key) ta.dataset.memokey=key;
+      if(isodate) ta.dataset.isodate=isodate;
       if(dk) ta.dataset.dk=dk;
+      if(isSched) ta.classList.add('schedule-ta');
       ta.value=val;
       ta.style.cssText='width:100%;border:none;background:transparent;font-family:inherit;font-size:11px;resize:none;padding:1px 3px;outline:none;color:var(--text);min-height:20px;overflow:hidden';
       autoGrowTA(ta);
       ta.addEventListener('input',()=>{
         autoGrowTA(ta);
         if(ta.dataset.memokey) setWeekMemo(curMonth,curWeek,ta.dataset.memokey,ta.value,ta.dataset.dk||null);
-        if(ta.dataset.scheduledate){S.schedule[ta.dataset.scheduledate]=ta.value;save();}
+        if(ta.dataset.isodate){S.schedule[ta.dataset.isodate]=ta.value;save();}
       });
       div.parentNode.replaceChild(ta,div);
     });
