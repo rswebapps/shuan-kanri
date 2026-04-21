@@ -344,7 +344,6 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   td.cell{border:1px solid #ccc!important;padding:2px 3px!important;
     min-height:15mm!important;vertical-align:top;height:1px}
   td.cell.nocount{min-height:8mm!important}
-  td.cell.inactive{display:none!important}
   .cin{min-height:inherit!important;padding:0!important}
   /* 教科名：教科色を維持しつつ印刷で確実に表示 */
   .sname{font-size:13px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -3395,17 +3394,10 @@ function refreshWbar(){
 
 // 印刷用の表示曜日を決定（土日はデータがある方のみ、最大6列＋月曜前日曜）
 function getPrintDKeys(){
-  const vsl=visSlots();
-  // 土・日のどちらかにデータがあるか確認
-  const hasSatData=S.showSat&&vsl.some(sl=>sl.base!=='none'&&['sat'].some(dk=>{
-    const c=getCell(curMonth,curWeek,sl.id,dk);return c.s1||c.s2;
-  }));
-  const hasSunData=S.showSun&&vsl.some(sl=>sl.base!=='none'&&['sun'].some(dk=>{
-    const c=getCell(curMonth,curWeek,sl.id,dk);return c.s1||c.s2;
-  }));
+  // 週案タブの土日表示設定をそのまま反映（visibleDKeys と同一ロジック）
   const base=['mon','tue','wed','thu','fri'];
-  if(hasSunData) base.unshift('sun'); // 日曜は月曜の左
-  if(hasSatData) base.push('sat');
+  if(S.showSun) base.unshift('sun');
+  if(S.showSat) base.push('sat');
   return base;
 }
 
