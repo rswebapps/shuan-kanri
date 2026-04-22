@@ -737,6 +737,39 @@ function isSubjectActive(s, grade, classType){
   return true;
 }
 // 学年・学級タイプに応じた初期教科リストを生成
+// ─── 学年別標準時数マスタ（文部科学省 標準授業時数）────────────────
+// key: 教科ラベル（planStdを乗せる代表教科のみ）
+// 図書・書写は国語に、委員会・クラブは学活に集約済み
+// 値: [1年, 2年, 3年, 4年, 5年, 6年]
+const SUBJECT_STD_HOURS={
+  '国語':       [306,315,245,245,175,175],
+  '社会':       [  0,  0, 70, 90,100,105],
+  '算数':       [136,175,175,175,175,175],
+  '理科':       [  0,  0, 90,105,105,105],
+  '生活':       [102,105,  0,  0,  0,  0],
+  '音楽':       [ 68, 70, 60, 60, 50, 50],
+  '図画工作':   [ 68, 70, 60, 60, 50, 50],
+  '家庭':       [  0,  0,  0,  0, 60, 55],
+  '体育':       [102,105,105,105, 90, 90],
+  '道徳':       [ 34, 35, 35, 35, 35, 35],
+  '外国語活動': [  0,  0, 35, 35,  0,  0],
+  '外国語':     [  0,  0,  0,  0, 70, 70],
+  '総合':       [  0,  0, 70, 70, 70, 70],
+  '学活':       [ 34, 35, 35, 35, 35, 35], // 特別活動の代表（委員会・クラブを含む）
+};
+// planStdが0の教科に標準時数を自動入力（B-2：毎起動時チェック）
+// 既入力（planStd>0）は維持する
+function applyPlanStdDefaults(){
+  const grade=S.grade;
+  if(typeof grade!=='number'||grade<1||grade>6) return;
+  const gi=grade-1; // 0-indexed
+  S.subjects.forEach(s=>{
+    if((s.planStd||0)>0) return; // 既入力は保護
+    const stdHours=SUBJECT_STD_HOURS[s.label];
+    if(stdHours) s.planStd=stdHours[gi]||0;
+  });
+}
+
 function defSubjectsForGrade(grade, classType){
   return SUBJECT_MASTER
     .filter(s=>isSubjectActive(s,grade,classType))
@@ -1931,6 +1964,7 @@ function renderCfgKoury(){
       const classType=newMode==='normal'?'normal':'tokushi';
       if(S.gradeSet&&typeof S.grade==='number'){
         S.subjects=defSubjectsForGrade(S.grade,classType);
+        applyPlanStdDefaults();
       }
     }
     if(newMode==='normal') S.koury.children.forEach(ch=>{ch.grade=null;ch.classNum=null;});
@@ -1953,7 +1987,7 @@ function renderCfgKoury(){
       }
       S.grade=newGrade;S.gradeSet=true;
       const reset=wasNotSet||confirm(`教科構成を${newGrade}年向けにリセットしますか？\n（「キャンセル」を選ぶと教科は現状維持）`);
-      if(reset) S.subjects=defSubjectsForGrade(S.grade,S.koury.mode==='normal'?'normal':'tokushi');
+      if(reset){ S.subjects=defSubjectsForGrade(S.grade,S.koury.mode==='normal'?'normal':'tokushi'); applyPlanStdDefaults(); }
       if(isNormal) S.koury.children.forEach(ch=>{ch.grade=null;});
       checkSubjectMismatch();renderCfgKoury();
       await saveAndReload();
@@ -4173,6 +4207,7 @@ function showSetupModal(){
       S.grade=+gradeEl.value;S.gradeSet=true;
       const classType=S.koury.mode==='normal'?'normal':'tokushi';
       S.subjects=defSubjectsForGrade(S.grade,classType);
+      applyPlanStdDefaults();
     }
     if(classnumEl&&+classnumEl.value>0) S.classNum=+classnumEl.value;
     // ヘッダー更新
@@ -4207,6 +4242,7 @@ async function _setupSaveAndEnter(){
 function _enterAppInternal(){
   appStarted=true;
   hasUnsavedChanges=false; // 読み込み直後・新規作成直後は差分なし
+  applyPlanStdDefaults(); // planStd未入力教科に標準時数を自動補完
   hideStartupScreen();
   document.getElementById('setup-overlay').classList.remove('on');
   const m=new Date().getMonth()+1;
