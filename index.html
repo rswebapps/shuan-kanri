@@ -52,6 +52,9 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
 #hd-json-status.saved{background:rgba(255,255,255,.15);color:rgba(255,255,255,.85)}
 #hd-json-status.unsaved{background:rgba(220,50,50,.55);color:#fff;font-weight:700;animation:blink 1.5s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+/* 学校名未入力警告 */
+#inp-school.warn{background:rgba(220,50,50,.55)!important;color:#fff!important;border-color:rgba(255,100,100,.7)!important;animation:blink 1.5s infinite}
+#inp-school.warn::placeholder{color:rgba(255,255,255,.8)!important}
 /* 齟齬バナー */
 #mismatch-banner{display:none;position:fixed;top:46px;left:0;right:0;z-index:149;
   background:#e65100;color:#fff;font-size:12px;font-weight:700;
@@ -515,8 +518,9 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <h1>📋 週案管理</h1>
   <span class="sep">|</span>
   <div class="hdf"><label>年度</label><select id="inp-year"></select></div>
-  <div class="hdf"><label>表示名</label><input id="inp-class" placeholder="例：3年2組（印刷・ファイル名用）" maxlength="12"></div>
-  <div class="hdf"><label>担任</label><input id="inp-teacher" placeholder="担任名を入力" maxlength="12"></div>
+  <div class="hdf"><input id="inp-school" placeholder="学校名を入力" maxlength="20" title="学校名（レポート出力に使用）" style="width:140px"></div>
+  <div class="hdf"><label>学級</label><input id="inp-class" placeholder="例：3年2組" maxlength="12" style="width:90px"></div>
+  <div class="hdf"><label>担任</label><input id="inp-teacher" placeholder="担任名" maxlength="12" style="width:80px"></div>
   <span class="sep" style="opacity:.25">|</span>
   <button class="hd-btn" id="btn-open-file">📂 週案データを開く</button>
   <button class="hd-btn accent" id="btn-save-file">💾 週案データを保存</button>
@@ -531,7 +535,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <span id="hd-saved">保存済み ✓</span>
   <span id="hd-source" style="font-size:10px;opacity:.65;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis" title=""></span>
   <span id="hd-json-status"></span>
-  <span id="hd-today" style="margin-left:auto"></span>
+  <span id="hd-today" style="margin-left:auto;white-space:nowrap;flex-shrink:0"></span>
 </div>
 <div id="mismatch-banner" style="display:none">
   <span id="mismatch-banner-msg"></span>
@@ -564,6 +568,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <div class="stab" data-sem="2" data-view="sem">2学期（9〜12月）</div>
   <div class="stab" data-sem="3" data-view="sem">3学期（1〜3月）</div>
   <div class="stab" data-sem="year" data-view="year">📊 集計</div>
+  <button onclick="openReportModal()" id="btn-report-out" style="display:none;margin-left:4px;padding:5px 12px;background:#2e7d32;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:center">📋 実施報告出力</button>
   <span id="hd-pwa-status"></span>
 </div>
 
@@ -833,7 +838,7 @@ function defVacation(){
     yearend:{start:'',end:'',workdays:[]}
   };
 }
-let S={year:curAcYear(),grade:3,classNum:1,gradeSet:false,cls:'',teacher:'',yearTotalWeeks:35,showSat:true,showSun:false,
+let S={year:curAcYear(),grade:3,classNum:1,gradeSet:false,schoolName:'',cls:'',teacher:'',yearTotalWeeks:35,showSat:true,showSun:false,
        schedule:{},vacation:null,
        subjects:defSubjects(),slots:defSlots(),patterns:defPatterns(),koury:defKoury()};
 let db={};
@@ -967,6 +972,10 @@ function planForTarget(t){
 function fmtN(n){if(!n)return'';const r=Math.round(n*100)/100;return r%1===0?String(r):r.toFixed(2);}
 function fmtNz(n){const r=Math.round(n*100)/100;return r%1===0?String(r):r.toFixed(2);}
 function fmtDiff(n){if(Math.abs(n)<0.01)return'±0';const a=Math.round(Math.abs(n)*100)/100;const s=a%1===0?String(a):a.toFixed(2);return(n>0?'+':'-')+s;}
+// レポート用: 小数第1位表記（0は空文字）
+function fmtR1(n){if(!n&&n!==0)return'';const r=Math.round(n*10)/10;return r===0?'':r.toFixed(1);}
+function fmtR1nz(n){const r=Math.round((n||0)*10)/10;return r.toFixed(1);}
+function fmtDiffR1(n){if(Math.abs(n)<0.05)return'±0.0';const a=Math.round(Math.abs(n)*10)/10;return(n>0?'+':'-')+a.toFixed(1);}
 
 // ─── 【2-2】有効週の判定 ─────────────────────────────────────────
 // 週（日〜土スパン）とその月が1日以上重なれば有効
@@ -1124,7 +1133,7 @@ function applyJsonData(text,fh){
     // フィールドを先にリセットしてからJSONを適用
     S.grade=3; S.classNum=1; S.gradeSet=false;
     const hadGrade=parsed.cfg.grade!=null;
-    const keys=['year','grade','classNum','gradeSet','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','vacation','subjects','slots','patterns','koury'];
+    const keys=['year','grade','classNum','gradeSet','schoolName','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','vacation','subjects','slots','patterns','koury'];
     keys.forEach(k=>{if(parsed.cfg[k]!=null)S[k]=parsed.cfg[k];});
     // vacation 未設定の旧ファイルは null のまま（後方互換）
     if(!hadGrade) S.gradeSet=false; // 旧v4 JSONはgradeなし → 未設定確定
@@ -1143,6 +1152,8 @@ function applyJsonData(text,fh){
     fileHandle=fh; // 開いたファイルを保存先として保持
     // ヘッダー共通更新
     document.getElementById('inp-class').value=S.cls||'';
+    document.getElementById('inp-school').value=S.schoolName||'';
+    updateSchoolNameWarn();
     document.getElementById('inp-teacher').value=S.teacher||'';
     document.getElementById('inp-year').querySelectorAll('option').forEach(o=>{
       o.selected=(+o.value===S.year);
@@ -1307,7 +1318,7 @@ function visibleDKeys(){
 // ─── JISUU CALC ──────────────────────────────────────────────────
 function calcActual(pairs){
   const ts=targets();
-  const res={};ts.forEach(t=>res[t]={full:0,half:0,mod:0,tot:0});
+  const res={};ts.forEach(t=>res[t]={full:0,half:0,mod:0,modTime:0,tot:0});
   for(const{m,weeks}of pairs){
     for(const w of weeks){
       for(const sl of S.slots){
@@ -1321,7 +1332,7 @@ function calcActual(pairs){
           const r2=has2?Math.round((1-r1)*100)/100:0;
           if(c.s1){
             const t=toTarget(c.s1);if(!res[t])res[t]={full:0,half:0,mod:0,tot:0};
-            if(isMod){res[t].mod+=1;res[t].tot+=unitMod;}
+            if(isMod){res[t].mod+=1;res[t].modTime+=unitMod;res[t].tot+=unitMod;}
             else if(has2){res[t].half+=1;res[t].tot+=r1;}
             else{res[t].full+=1;res[t].tot+=1;}
           }
@@ -3508,6 +3519,8 @@ function showView(v){
   document.getElementById('cfg-view').classList.toggle('on',isCfg);
   document.getElementById('mbar').style.display=isSem?'flex':'none';
   document.getElementById('wbar').style.display=isSem?'flex':'none';
+  const rb=document.getElementById('btn-report-out');
+  if(rb) rb.style.display=isYear?'inline-block':'none';
   document.getElementById('tt-wrap').style.display=isSem?'':'none';
   document.getElementById('jisuu').style.display=isSem?'':'none';
   document.getElementById('jisuu-resizer').style.display=isSem?'block':'none';
@@ -4129,6 +4142,11 @@ function renderSetupBody(){
     </div>
     ${gradeHtml}
     <div class="setup-sec">
+      <label class="setup-lbl">学校名 <small>レポート出力に使用</small></label>
+      <input id="setup-school" type="text" class="setup-inp"
+        placeholder="例：○○市立○○小学校" value="${escHtml(S.schoolName||'')}">
+    </div>
+    <div class="setup-sec">
       <label class="setup-lbl">表示名 <small>印刷・ファイル名に使用</small></label>
       <input id="setup-cls" type="text" class="setup-inp"
         placeholder="${mode==='senka'?'例：専科1':'例：3年2組'}" value="${escHtml(S.cls||'')}">
@@ -4162,6 +4180,8 @@ function renderSetupBody(){
     const classnumEl=document.getElementById('setup-classnum');
     if(classnumEl) classnumEl.onchange=()=>checkSetupOk();
   }
+  const schoolEl=document.getElementById('setup-school');
+  if(schoolEl) schoolEl.oninput=e=>{S.schoolName=e.target.value;updateSchoolNameWarn();};
   document.getElementById('setup-cls').oninput=e=>{S.cls=e.target.value;checkSetupOk();};
   document.getElementById('setup-teacher').oninput=e=>{S.teacher=e.target.value;checkSetupOk();};
 }
@@ -4243,6 +4263,9 @@ function _enterAppInternal(){
   appStarted=true;
   hasUnsavedChanges=false; // 読み込み直後・新規作成直後は差分なし
   applyPlanStdDefaults(); // planStd未入力教科に標準時数を自動補完
+  // 学校名未入力チェック（既存データ後方互換）
+  updateSchoolNameWarn();
+  setTimeout(()=>checkSchoolNameAndPrompt(),800);
   hideStartupScreen();
   document.getElementById('setup-overlay').classList.remove('on');
   const m=new Date().getMonth()+1;
@@ -4265,12 +4288,710 @@ function enterApp(){
   }
   _enterAppInternal();
 }
+
+// ─── 学校名警告 ───────────────────────────────────────────────
+function updateSchoolNameWarn(){
+  const el=document.getElementById('inp-school');
+  if(!el) return;
+  el.classList.toggle('warn', !(S.schoolName||'').trim());
+}
+
+function checkSchoolNameAndPrompt(){
+  if((S.schoolName||'').trim()) return;
+  // 学校名未入力ポップアップ
+  const existing=document.getElementById('school-name-popup');
+  if(existing) return;
+  const popup=document.createElement('div');
+  popup.id='school-name-popup';
+  popup.style.cssText='position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:200;'+
+    'background:#fff;border:2px solid #c62828;border-radius:8px;padding:16px 20px;'+
+    'box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:380px;font-size:13px;text-align:center';
+  popup.innerHTML=`<div style="font-weight:700;color:#c62828;margin-bottom:8px">⚠ 学校名が未入力です</div>
+    <div style="margin-bottom:12px;color:#555">レポート出力に学校名が必要です。<br>ヘッダーの学校名欄に入力してください。</div>
+    <input id="school-popup-inp" type="text" placeholder="例：○○市立○○小学校"
+      style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:10px"
+      value="${escHtml(S.schoolName||'')}">
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="school-popup-ok" style="padding:6px 18px;background:#1a6fc4;color:#fff;border:none;border-radius:4px;font-size:13px;cursor:pointer">設定する</button>
+      <button id="school-popup-skip" style="padding:6px 18px;background:#eee;border:none;border-radius:4px;font-size:13px;cursor:pointer">後で入力</button>
+    </div>`;
+  document.body.appendChild(popup);
+  const inp=document.getElementById('school-popup-inp');
+  document.getElementById('school-popup-ok').onclick=()=>{
+    const v=inp.value.trim();
+    if(!v){inp.style.borderColor='#c62828';return;}
+    S.schoolName=v;
+    document.getElementById('inp-school').value=v;
+    updateSchoolNameWarn();
+    save();
+    popup.remove();
+  };
+  document.getElementById('school-popup-skip').onclick=()=>popup.remove();
+}
+
+// ─── レポート用予定時数計算（端数吸収付き） ──────────────────────
+// 各学期の有効週数を返す
+function semValidWeeks(sem){
+  return validWeekCountForMonths(SEMS[sem].months);
+}
+
+// ─── 按分用週数（8月は長期休業未入力でも常に除外）────────────────
+// 実績集計は SEMS定義通り（8月実績は1学期に含まれる）
+// 按分計算のみこの定義を使用する
+const PLAN_SEM_MONTHS={
+  '1':[4,5,6,7],   // 8月を除外（夏休みが常に存在するという前提）
+  '2':[9,10,11,12],
+  '3':[1,2,3]
+};
+function semValidWeeksForPlan(sem){
+  return validWeekCountForMonths(PLAN_SEM_MONTHS[sem]);
+}
+
+// 月の有効週数（選択期間内に限定。limitWeek省略=全週）
+function monthValidWeeks(m, limitWeek=999){
+  return validWeeksForMonth(m).filter(w=>w<=limitWeek).length;
+}
+
+// 学期の吸収月（有効週ゼロなら順延）
+const SEM_ABSORB_MONTHS={
+  '1':[6,7,5,4],
+  '2':[10,11,9,12],
+  '3':[2,1,3]
+};
+function absorbMonthForSem(sem){
+  for(const m of SEM_ABSORB_MONTHS[sem]){
+    if(validWeeksForMonth(m).length>0) return m;
+  }
+  return SEMS[sem].months[0]; // フォールバック
+}
+
+// 教科tの学期別予定時数（整数、端数は2学期吸収）
+// 戻り値: {'1':n,'2':n,'3':n}
+function planBySem(t){
+  const total=planForTarget(t).planTotal;
+  // 按分は8月除外の週数で計算（実績集計とは独立）
+  const wks={'1':semValidWeeksForPlan('1'),'2':semValidWeeksForPlan('2'),'3':semValidWeeksForPlan('3')};
+  const sumWks=wks['1']+wks['2']+wks['3'];
+  if(!sumWks||!total) return {'1':0,'2':0,'3':0};
+  const p1=Math.round(total*wks['1']/sumWks);
+  const p3=Math.round(total*wks['3']/sumWks);
+  const p2=total-p1-p3; // 2学期で端数吸収
+  return {'1':p1,'2':p2,'3':p3};
+}
+
+// 教科tの月別予定時数（整数、各学期内の吸収月で端数吸収）
+// 戻り値: {4:n,5:n,...,3:n}
+function planByMonth(t){
+  const bySem=planBySem(t);
+  const result={};
+  for(const sem of ['1','2','3']){
+    const semTotal=bySem[sem];
+    // 按分対象月は8月除外リスト（ただし8月のエントリは0で出力）
+    const planMons=PLAN_SEM_MONTHS[sem];
+    const allMons=SEMS[sem].months;
+    const semWks=semValidWeeksForPlan(sem);
+    const absorb=absorbMonthForSem(sem);
+    let assigned=0;
+    const tmp={};
+    for(const m of planMons){
+      if(m===absorb){tmp[m]=null;continue;}
+      const mw=validWeeksForMonth(m).length;
+      const raw=semWks>0?semTotal*mw/semWks:0;
+      tmp[m]=Math.round(raw);
+      assigned+=tmp[m];
+    }
+    tmp[absorb]=semTotal-assigned; // 端数吸収
+    // 8月は按分対象外（予定0）だが、エントリは存在させる
+    for(const m of allMons){
+      if(!(m in tmp)) tmp[m]=0;
+    }
+    Object.assign(result,tmp);
+  }
+  return result;
+}
+
+// 教科tの週別予定時数（整数、各月内の第2週で端数吸収）
+// 戻り値: {m:{w:n,...},...}
+function planByWeek(t){
+  const byMonth=planByMonth(t);
+  const result={};
+  for(const m of MONTH_ORDER){
+    const mTotal=byMonth[m]||0;
+    const weeks=validWeeksForMonth(m);
+    if(!weeks.length){result[m]={};continue;}
+    const tmp={};
+    let assigned=0;
+    const absorb=weeks.length>=2?weeks[1]:weeks[0]; // 第2週（なければ第1週）
+    for(const w of weeks){
+      if(w===absorb){tmp[w]=null;continue;}
+      const raw=weeks.length>0?mTotal/weeks.length:0;
+      tmp[w]=Math.round(raw);
+      assigned+=tmp[w];
+    }
+    tmp[absorb]=mTotal-assigned;
+    result[m]=tmp;
+  }
+  return result;
+}
+
+// モジュール分の学期別予定（端数は2学期吸収）
+function planModBySem(t){
+  const totalMod=planForTarget(t).planMod;
+  const wks={'1':semValidWeeksForPlan('1'),'2':semValidWeeksForPlan('2'),'3':semValidWeeksForPlan('3')};
+  const sumWks=wks['1']+wks['2']+wks['3'];
+  if(!sumWks||!totalMod) return {'1':0,'2':0,'3':0};
+  const p1=Math.round(totalMod*wks['1']/sumWks);
+  const p3=Math.round(totalMod*wks['3']/sumWks);
+  const p2=totalMod-p1-p3;
+  return {'1':p1,'2':p2,'3':p3};
+}
+
+// モジュール分の月別予定
+function planModByMonth(t){
+  const bySem=planModBySem(t);
+  const result={};
+  for(const sem of ['1','2','3']){
+    const semTotal=bySem[sem];
+    const planMons=PLAN_SEM_MONTHS[sem];
+    const allMons=SEMS[sem].months;
+    const semWks=semValidWeeksForPlan(sem);
+    const absorb=absorbMonthForSem(sem);
+    let assigned=0;const tmp={};
+    for(const m of planMons){
+      if(m===absorb){tmp[m]=null;continue;}
+      const mw=validWeeksForMonth(m).length;
+      tmp[m]=semWks>0?Math.round(semTotal*mw/semWks):0;
+      assigned+=tmp[m];
+    }
+    tmp[absorb]=semTotal-assigned;
+    Object.assign(result,tmp);
+  }
+  return result;
+}
+
+// ─── レポート出力UI ──────────────────────────────────────────────
+// 出力期間の月リスト（4月始まり〜指定月末）
+function reportMonths(untilMonth){
+  const idx=MONTH_ORDER.indexOf(untilMonth);
+  if(idx<0) return [];
+  return MONTH_ORDER.slice(0,idx+1);
+}
+
+// 選択期間が属する学期を返す（複数学期にまたがる場合は最後の学期）
+function semOfUntil(untilMonth){
+  return semOf(untilMonth);
+}
+
+// レポートモーダルを開く
+function openReportModal(){
+  const existing=document.getElementById('report-modal-bg');
+  if(existing) existing.remove();
+
+  // 全12選択肢（学期ごとにグループ）
+  const allOptions=[];
+  for(const s of ['1','2','3']){
+    for(const m of SEMS[s].months){
+      const isLast=m===SEMS[s].months[SEMS[s].months.length-1];
+      const label=isLast?`${s}学期末（${m}月末）`:`${m}月末`;
+      allOptions.push({sem:s,month:m,label,isLast});
+    }
+  }
+
+  // デフォルト選択: 現在月。なければ最初の選択肢
+  const defMonth=curMonth;
+  const optHtml=allOptions.map(o=>
+    `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;${o.isLast?'margin-bottom:6px':''}">
+      <input type="radio" name="rpt-period" value="${o.month}" ${o.month===defMonth?'checked':''}>
+      <span>${o.label}</span>
+    </label>`
+  ).join('');
+
+  const bg=document.createElement('div');
+  bg.id='report-modal-bg';
+  bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:flex;align-items:center;justify-content:center';
+  bg.innerHTML=`<div style="background:#fff;border-radius:10px;padding:24px 28px;min-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px">📊 レポート出力</div>
+    <div style="font-size:12px;color:#666;margin-bottom:10px">出力する期間を選択してください</div>
+    <div style="max-height:260px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;padding:8px 12px;margin-bottom:16px">
+      ${optHtml}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="rpt-print" style="flex:1;padding:8px;background:#1a6fc4;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer">🖨 印刷</button>
+      <button id="rpt-xlsx" style="flex:1;padding:8px;background:#2e7d32;color:#fff;border:none;border-radius=5px;border-radius:5px;font-size:13px;cursor:pointer">📥 xlsx出力</button>
+      <button id="rpt-cancel" style="padding:8px 16px;background:#eee;border:none;border-radius:5px;font-size:13px;cursor:pointer">キャンセル</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+
+  const getMonth=()=>+document.querySelector('input[name="rpt-period"]:checked')?.value||curMonth;
+  document.getElementById('rpt-cancel').onclick=()=>bg.remove();
+  bg.onclick=e=>{if(e.target===bg)bg.remove();};
+  document.getElementById('rpt-print').onclick=()=>{bg.remove();printReport(getMonth());};
+  document.getElementById('rpt-xlsx').onclick=()=>{bg.remove();exportReportXlsx(getMonth());};
+}
+
+
+// ─── A様式 HTML生成（横向きA4・XLS列順・自動スケール）──────────────
+function buildReportAHtml(untilMonth){
+  const ts=targets();
+  const showMod=hasActiveMod();
+  const rMonths=reportMonths(untilMonth);
+  const grade=typeof S.grade==='number'?`${S.grade}学年`:'専科';
+  const schoolName=S.schoolName||'';
+  const cls=S.cls||'';
+  const teacher=S.teacher||'';
+
+  const monthActual={};
+  for(const m of MONTH_ORDER) monthActual[m]=calcMonth(m);
+  // semActualはrMonths範囲内のみ集計（選択期間以降のデータを除外）
+  const semActual={};
+  for(const sem of ['1','2','3']){
+    const semRMons=SEMS[sem].months.filter(m=>rMonths.includes(m));
+    semActual[sem]=calcActual(semRMons.map(m=>({m,weeks:[1,2,3,4,5,6]})));
+  }
+  const yearActual=calcActual(rMonths.map(m=>({m,weeks:[1,2,3,4,5,6]})));
+  const bySem={},modBySem={};
+  for(const t of ts){bySem[t]=planBySem(t);modBySem[t]=planModBySem(t);}
+
+  // XLS列順: 教科|年間実績|年間予定|年間過不足|[sem1全月]|sem1実績|sem1予定|sem1過不足|[sem2全月]|…
+  // A様式は常に12ヶ月全列を表示。rMonths外・データなしは空白。
+  // ヘッダー（1行）
+  let hdr='<tr>';
+  hdr+=`<th>教科</th><th>年間<br>実績</th><th>年間<br>予定</th><th>年間<br>過不足</th>`;
+  for(const sem of ['1','2','3']){
+    for(const m of SEMS[sem].months) hdr+=`<th>${m}月</th>`;  // 全月を常に表示
+    const sl=SEMS[sem].label;
+    hdr+=`<th>${sl}<br>実績</th>`;
+    if(showMod) hdr+=`<th>うち<br>モ</th>`;
+    hdr+=`<th>${sl}<br>予定</th>`;
+    if(showMod) hdr+=`<th>うち<br>モ</th>`;
+    hdr+=`<th>${sl}<br>過不足</th>`;
+  }
+  hdr+='</tr>';
+
+  // データ行・合計行
+  let tbodyRows='';
+  let totYAct=0,totYPlan=0;
+  const semTot={'1':{act:0,modA:0,plan:0,modP:0},'2':{act:0,modA:0,plan:0,modP:0},'3':{act:0,modA:0,plan:0,modP:0}};
+
+  for(const t of ts){
+    const pl=planForTarget(t);
+    const yAct=yearActual[t]?.tot||0;
+    const yPlan=pl.planTotal;
+    totYAct+=yAct; totYPlan+=yPlan;
+    const yDiff=yAct-yPlan;
+    const ydc=Math.abs(yDiff)<0.01?'':`color:${yDiff>=0?'#1565c0':'#c62828'}`;
+    let row=`<td class="tn">${t}</td><td>${fmtR1(yAct)||0}</td><td>${yPlan||0}</td><td style="${ydc}">${yPlan?fmtDiffR1(yDiff):'-'}</td>`;
+    for(const sem of ['1','2','3']){
+      for(const m of SEMS[sem].months){
+        // rMonths内の月はデータ表示、範囲外は空白
+        const v=rMonths.includes(m)?(monthActual[m]?.[t]?.tot||0):null;
+        row+=`<td>${v!==null?fmtR1(v):''}</td>`;
+      }
+      const sAct=semActual[sem]?.[t]?.tot||0;
+      const sModA=semActual[sem]?.[t]?.modTime||0;
+      const sPlan=bySem[t]?.[sem]||0;
+      const sModP=modBySem[t]?.[sem]||0;
+      const sDiff=sAct-sPlan;
+      const sdc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#1565c0':'#c62828'}`;
+      semTot[sem].act+=sAct; semTot[sem].modA+=sModA; semTot[sem].plan+=sPlan; semTot[sem].modP+=sModP; // modAは時数
+      row+=`<td>${fmtR1(sAct)||'-'}</td>${showMod?`<td>${fmtR1(sModA)||'-'}</td>`:''}<td>${sPlan||'-'}</td>${showMod?`<td>${sModP||'-'}</td>`:''}<td style="${sdc}">${sPlan?fmtDiffR1(sDiff):'-'}</td>`;
+    }
+    tbodyRows+=`<tr>${row}</tr>`;
+  }
+
+  // 合計行
+  const yTotDiff=totYAct-totYPlan;
+  const ytdc=Math.abs(yTotDiff)<0.01?'':`color:${yTotDiff>=0?'#1565c0':'#c62828'}`;
+  let ftRow=`<td class="tn">合計</td><td>${fmtR1nz(totYAct)}</td><td>${totYPlan||0}</td><td style="${ytdc}">${totYPlan?fmtDiffR1(yTotDiff):'-'}</td>`;
+  for(const sem of ['1','2','3']){
+    for(const m of SEMS[sem].months){
+      const v=rMonths.includes(m)?ts.reduce((s,t)=>s+(monthActual[m]?.[t]?.tot||0),0):null;
+      ftRow+=`<td>${v!==null?fmtR1(v):''}</td>`;
+    }
+    const{act,modA,plan,modP}=semTot[sem];
+    const sDiff=act-plan;
+    const sdc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#1565c0':'#c62828'}`;
+    ftRow+=`<td>${fmtR1nz(act)}</td>${showMod?`<td>${fmtR1(modA)||'-'}</td>`:''}<td>${plan||'-'}</td>${showMod?`<td>${modP||'-'}</td>`:''}<td style="${sdc}">${plan?fmtDiffR1(sDiff):'-'}</td>`;
+  }
+
+  // 検印欄
+  const stampHtml=`<div class="stamp-row">
+    <div class="stamp-box"><div class="stamp-lbl">校長</div><div class="stamp-seal"></div></div>
+    <div class="stamp-box"><div class="stamp-lbl">教頭</div><div class="stamp-seal"></div></div>
+    <div class="stamp-box"><div class="stamp-lbl">教務</div><div class="stamp-seal"></div></div>
+  </div>`;
+
+  return `<div class="rpt-page rpt-a">
+    <div class="rpt-inner" id="rpt-a-inner">
+      <div class="rpt-hd">
+        <div class="rpt-title">令和${S.year-2018}年度　月別授業実施時数一覧表（第${grade}）</div>
+        <div class="rpt-sub">${schoolName}　${grade}${cls}　担任：${teacher}</div>
+      </div>
+      <table class="rpt-tbl" id="rpt-a-tbl">
+        <thead>${hdr}</thead>
+        <tbody>${tbodyRows}</tbody>
+        <tfoot><tr class="ft">${ftRow}</tr></tfoot>
+      </table>
+      ${stampHtml}
+    </div>
+  </div>`;
+}
+
+
+// ─── B様式 HTML生成（横3ヶ月・自動スケール）────────────────────────
+function buildReportBHtml(untilMonth){
+  const ts=targets();
+  const showMod=hasActiveMod();
+  const rMonths=reportMonths(untilMonth);
+  const grade=typeof S.grade==='number'?`${S.grade}学年`:'専科';
+  const schoolName=S.schoolName||'';
+  const cls=S.cls||'';
+  const teacher=S.teacher||'';
+
+  const activeMons=rMonths.filter(m=>{
+    const act=calcMonth(m);return ts.some(t=>(act[t]?.tot||0)>0);
+  });
+  if(!activeMons.length) return '';
+
+  const byMonth={},bySem={},modBySem={};
+  for(const t of ts){byMonth[t]=planByMonth(t);bySem[t]=planBySem(t);modBySem[t]=planModBySem(t);}
+
+  // 2ヶ月ごとにページ（A4横で各月50%幅確保）
+  const pages=[];
+  for(let i=0;i<activeMons.length;i+=2) pages.push(activeMons.slice(i,i+2));
+
+  let allHtml='';
+  pages.forEach((pageMons,pi)=>{
+    // 各月ブロックのHTMLを生成
+    const blocks=pageMons.map(m=>{
+      const act=calcMonth(m);
+      const sem=semOf(m);
+      // semActはrMonths範囲内のみ集計
+      const semRMonsB=SEMS[sem].months.filter(m2=>rMonths.includes(m2));
+      const semAct=calcActual(semRMonsB.map(m2=>({m:m2,weeks:[1,2,3,4,5,6]})));
+      const validWks=validWeeksForMonth(m);
+      const sl=SEMS[sem].label;
+
+      let thead=`<tr><th class="tn">${m}月</th>`;
+      for(const w of validWks) thead+=`<th>第${w}週</th>`;
+      thead+=`<th>月計</th>${showMod?'<th>うちモ</th>':''}`;
+      thead+=`<th>${sl}<br>実績</th>${showMod?'<th>うちモ</th>':''}`;
+      thead+=`<th>${sl}<br>予定</th>${showMod?'<th>うちモ</th>':''}`;
+      thead+=`<th>${sl}<br>過不足</th></tr>`;
+
+      let tbody='';
+      for(const t of ts){
+        const mAct=act[t]?.tot||0;
+        const mModAct=act[t]?.modTime||0;  // 時数（コマ数でなく）
+        const sAct=semAct[t]?.tot||0;
+        const sModAct=semAct[t]?.mod||0;   // xlsx: コマ数
+        const sPlan=bySem[t]?.[sem]||0;
+        const sModPlan=modBySem[t]?.[sem]||0;
+        const sDiff=sAct-sPlan;
+        const dc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#1565c0':'#c62828'}`;
+        let row=`<td class="tn">${t}</td>`;
+        for(const w of validWks) row+=`<td>${fmtR1(calcWeek(m,w)[t]?.tot)||'-'}</td>`;
+        row+=`<td class="mc">${fmtR1(mAct)||'-'}</td>${showMod?`<td>${fmtR1(mModAct)||'-'}</td>`:''}`
+            +`<td>${fmtR1(sAct)||'-'}</td>${showMod?`<td>${fmtR1(sModAct)||'-'}</td>`:''}`
+            +`<td>${sPlan||'-'}</td>${showMod?`<td>${sModPlan||'-'}</td>`:''}`
+            +`<td style="${dc}">${sPlan?fmtDiffR1(sDiff):'-'}</td>`;
+        tbody+=`<tr>${row}</tr>`;
+      }
+
+      // 合計行
+      const mTotAct=ts.reduce((s,t)=>s+(act[t]?.tot||0),0);
+      const mTotMod=ts.reduce((s,t)=>s+(act[t]?.modTime||0),0);
+      const sTotAct=ts.reduce((s,t)=>s+(semAct[t]?.tot||0),0);
+      const sTotMod=ts.reduce((s,t)=>s+(semAct[t]?.modTime||0),0);
+      const sTotPlan=ts.reduce((s,t)=>s+(bySem[t]?.[sem]||0),0);
+      const sTotModP=ts.reduce((s,t)=>s+(modBySem[t]?.[sem]||0),0);
+      const sTotDiff=sTotAct-sTotPlan;
+      const tdc=Math.abs(sTotDiff)<0.01?'':`color:${sTotDiff>=0?'#1565c0':'#c62828'}`;
+      let ftRow=`<td class="tn">合計</td>`;
+      for(const w of validWks) ftRow+=`<td>${fmtR1(ts.reduce((s,t)=>s+(calcWeek(m,w)[t]?.tot||0),0))||'-'}</td>`;
+      ftRow+=`<td class="mc">${fmtR1nz(mTotAct)}</td>${showMod?`<td>${fmtR1(mTotMod)||'-'}</td>`:''}`
+           +`<td>${fmtR1nz(sTotAct)}</td>${showMod?`<td>${fmtR1(sTotMod)||'-'}</td>`:''}`
+           +`<td>${sTotPlan||'-'}</td>${showMod?`<td>${sTotModP||'-'}</td>`:''}`
+           +`<td style="${tdc}">${sTotPlan?fmtDiffR1(sTotDiff):'-'}</td>`;
+
+      return `<div class="b-block"><table class="rpt-tbl b-tbl"><thead>${thead}</thead><tbody>${tbody}</tbody><tfoot><tr class="ft">${ftRow}</tr></tfoot></table></div>`;
+    });
+
+    allHtml+=`<div class="rpt-page rpt-b">
+      <div class="rpt-inner" id="rpt-b-inner-${pi}">
+        <div class="rpt-hd">
+          <div class="rpt-title">令和${S.year-2018}年度　月別授業実施時数一覧表（第${grade}）</div>
+          <div class="rpt-sub">${schoolName}　${grade}${cls}　担任：${teacher}　${pi+1}ページ</div>
+        </div>
+        <div class="b-blocks">${blocks.join('')}</div>
+      </div>
+    </div>`;
+  });
+  return allHtml;
+}
+
+// ─── 印刷出力（A様式 + B様式）────────────────────────────────────
+function printReport(untilMonth){
+  const aHtml=buildReportAHtml(untilMonth);
+  const bHtml=buildReportBHtml(untilMonth);
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>印刷中...</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;background:#fff}
+/* ページ共通 */
+.rpt-page{
+  width:277mm;height:190mm;
+  overflow:hidden;position:relative;
+  page-break-after:always;
+  display:flex;flex-direction:column;
+}
+.rpt-inner{
+  width:100%;height:100%;
+  display:flex;flex-direction:column;
+  transform-origin:top left;
+}
+/* ヘッダー */
+.rpt-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2mm;flex-shrink:0}
+.rpt-title{font-size:13pt;font-weight:700}
+.rpt-sub{font-size:9.5pt}
+/* テーブル共通 */
+.rpt-tbl{border-collapse:collapse;width:100%;table-layout:fixed}
+.rpt-tbl th,.rpt-tbl td{border:1px solid #999;padding:2px 3px;text-align:right;font-size:9pt;overflow:hidden;white-space:nowrap}
+.rpt-tbl th{background:#dde4f0;text-align:center;font-weight:600}
+.rpt-tbl tfoot .ft td{background:#eef1f8;font-weight:700}
+.tn{text-align:left!important;font-weight:600}
+.mc{font-weight:700;background:#f5f7ff}
+/* A様式 */
+.rpt-a .rpt-inner{justify-content:space-between}
+.rpt-a .rpt-tbl{flex:1}
+/* 検印欄 */
+.stamp-row{display:flex;gap:4mm;justify-content:flex-end;margin-top:2mm;flex-shrink:0}
+.stamp-box{text-align:center}
+.stamp-lbl{font-size:7pt;margin-bottom:1mm}
+.stamp-seal{border:1px solid #999;width:22mm;height:15mm}
+/* B様式 */
+.b-blocks{display:flex;gap:2mm;flex:1;align-items:stretch;overflow:hidden}
+.b-block{width:calc(50% - 1mm);min-width:calc(50% - 1mm);max-width:calc(50% - 1mm);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden}
+.b-tbl{width:100%!important;table-layout:fixed!important;height:100%}
+/* 印刷設定 */
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{margin:0}
+  .rpt-page{width:277mm;height:190mm;page-break-after:always}
+}
+@media screen{
+  body{background:#888;padding:10mm}
+  .rpt-page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);margin-bottom:10mm}
+}
+</style>
+</head><body>
+${aHtml}${bHtml}
+<script>
+// 各ページを A4 横内に収まるよう自動スケール
+function autoScale(){
+  document.querySelectorAll('.rpt-inner').forEach(inner=>{
+    const page=inner.closest('.rpt-page');
+    if(!page) return;
+    inner.style.transform='none';inner.style.width='100%';inner.style.height='100%';
+
+    // B様式：ブロック幅をページ幅の50%に強制固定してからスケール
+    if(page.classList.contains('rpt-b')){
+      const blocks=inner.querySelectorAll('.b-block');
+      const bw=Math.floor((page.clientWidth-4)/2); // gap=4px想定
+      blocks.forEach(b=>{
+        b.style.width=bw+'px';b.style.minWidth=bw+'px';b.style.maxWidth=bw+'px';
+      });
+    }
+
+    // 高さ方向のオーバーフローのみスケール（横はブロック幅固定で制御済み）
+    const pw=page.clientWidth||1047;
+    const ph=page.clientHeight||718;
+    const ch=inner.scrollHeight;
+    const scaleY=ph/ch;
+    const scale=Math.min(scaleY,1);
+    if(scale<0.995){
+      inner.style.transform='scale('+scale+')';
+      inner.style.transformOrigin='top left';
+      inner.style.width=(100/scale)+'%';
+      inner.style.height=(100/scale)+'%';
+    }
+  });
+}
+window.onload=function(){
+  autoScale();
+  setTimeout(function(){
+    window.print();
+  },400);
+};
+window.addEventListener('afterprint',function(){
+  window.close();
+});
+<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+
+// ─── xlsx出力（A様式 + B様式）───────────────────────────────────
+function exportReportXlsx(untilMonth){
+  if(typeof XLSX==='undefined'){alert('SheetJSの読み込みに失敗しました。');return;}
+  const ts=targets();
+  const showMod=hasActiveMod();
+  const rMonths=reportMonths(untilMonth);
+  const grade=typeof S.grade==='number'?`${S.grade}学年`:'専科';
+  const cls=S.cls||'';
+  const teacher=S.teacher||'';
+  const schoolName=S.schoolName||'';
+
+  const byMonth={},bySem={},modByMonth={},modBySem={};
+  for(const t of ts){
+    byMonth[t]=planByMonth(t);
+    bySem[t]=planBySem(t);
+    modByMonth[t]=planModByMonth(t);
+    modBySem[t]=planModBySem(t);
+  }
+
+  const monthActual={};
+  for(const m of MONTH_ORDER) monthActual[m]=calcMonth(m);
+  // semActualはrMonths範囲内のみ集計（選択期間以降のデータを除外）
+  const semActual={};
+  for(const sem of ['1','2','3']){
+    const semRMons=SEMS[sem].months.filter(m=>rMonths.includes(m));
+    semActual[sem]=calcActual(semRMons.map(m=>({m,weeks:[1,2,3,4,5,6]})));
+  }
+  const yearActual=calcActual(rMonths.map(m=>({m,weeks:[1,2,3,4,5,6]})));
+
+  const wb=XLSX.utils.book_new();
+
+  // ── A様式シート ──
+  const monthCols=MONTH_ORDER.filter(m=>rMonths.includes(m));
+  const semsList=['1','2','3'];
+
+  // ヘッダー行
+  const hdr1=['内容等','年間実績','年間予定','年間過不足'];
+  const hdr2=['','','',''];
+  for(const m of monthCols){hdr1.push(`${m}月`);hdr2.push('');}
+  for(const sem of semsList){
+    const sl=SEMS[sem].label;
+    hdr1.push(`${sl}実績`);if(showMod)hdr1.push('うちモ');
+    hdr1.push(`${sl}予定`);if(showMod)hdr1.push('うちモ');
+    hdr1.push(`${sl}過不足`);
+    hdr2.push('');if(showMod)hdr2.push('');
+    hdr2.push('');if(showMod)hdr2.push('');
+    hdr2.push('');
+  }
+
+  const aAoa=[
+    [`令和${S.year-2018}年度　月別授業実施時数一覧表（第${grade}）`,...Array(hdr1.length-1).fill('')],
+    [`${schoolName}　${grade}${cls}　担任：${teacher}`,...Array(hdr1.length-1).fill('')],
+    hdr1,
+  ];
+
+  for(const t of ts){
+    const pl=planForTarget(t);
+    const yAct=yearActual[t]?.tot||0;
+    const yPlan=pl.planTotal;
+    const row=[t,fmtN(yAct)||0,yPlan||0,yPlan?(yAct-yPlan):0];
+    for(const m of monthCols){
+      row.push(rMonths.includes(m)?(monthActual[m]?.[t]?.tot||0):0);
+    }
+    for(const sem of semsList){
+      const sAct=semActual[sem]?.[t]?.tot||0;
+      const sModAct=semActual[sem]?.[t]?.modTime||0;
+      const sPlan=bySem[t][sem];
+      const sModPlan=modBySem[t][sem];
+      row.push(sAct);if(showMod)row.push(sModAct);
+      row.push(sPlan);if(showMod)row.push(sModPlan);
+      row.push(sPlan?sAct-sPlan:0);
+    }
+    aAoa.push(row);
+  }
+  // 合計行
+  const ftRow=['合計',
+    ts.reduce((s,t)=>s+(yearActual[t]?.tot||0),0),
+    ts.reduce((s,t)=>s+(planForTarget(t).planTotal||0),0),
+    ''
+  ];
+  for(const m of monthCols){
+    ftRow.push(rMonths.includes(m)?ts.reduce((s,t)=>s+(monthActual[m]?.[t]?.tot||0),0):0);
+  }
+  for(const sem of semsList){
+    const sa=ts.reduce((s,t)=>s+(semActual[sem]?.[t]?.tot||0),0);
+    const sma=ts.reduce((s,t)=>s+(semActual[sem]?.[t]?.modTime||0),0);
+    const sp=ts.reduce((s,t)=>s+(bySem[t][sem]||0),0);
+    const smp=ts.reduce((s,t)=>s+(modBySem[t][sem]||0),0);
+    ftRow.push(sa);if(showMod)ftRow.push(sma);
+    ftRow.push(sp);if(showMod)ftRow.push(smp);
+    ftRow.push(sp?sa-sp:0);
+  }
+  aAoa.push(ftRow);
+  const wsA=XLSX.utils.aoa_to_sheet(aAoa);
+  XLSX.utils.book_append_sheet(wb,wsA,'年間集計');
+
+  // ── 月別シート ──
+  const activeMons=rMonths.filter(m=>{
+    const act=calcMonth(m);return ts.some(t=>(act[t]?.tot||0)>0);
+  });
+  for(const m of activeMons){
+    const act=calcMonth(m);
+    const sem=semOf(m);
+    // semActはrMonths範囲内のみ集計
+    const semRMonsX=SEMS[sem].months.filter(mx=>rMonths.includes(mx));
+    const semAct=calcActual(semRMonsX.map(mx=>({m:mx,weeks:[1,2,3,4,5,6]})));
+    const validWks=validWeeksForMonth(m);
+    const sl=SEMS[sem].label;
+
+    const mHdr=['内容等','年間実績','年間予定','年間過不足'];
+    for(const w of validWks) mHdr.push(`第${w}週`);
+    mHdr.push('月計');if(showMod)mHdr.push('うちモ');
+    mHdr.push(`${sl}実績`);if(showMod)mHdr.push('うちモ');
+    mHdr.push(`${sl}予定`);if(showMod)mHdr.push('うちモ');
+    mHdr.push(`${sl}過不足`);
+
+    const mAoa=[
+      [`令和${S.year-2018}年度　月別授業実施時数一覧表（第${grade}）`,...Array(mHdr.length-1).fill('')],
+      [`${schoolName}　${grade}${cls}　担任：${teacher}`,...Array(mHdr.length-1).fill('')],
+      mHdr
+    ];
+    const yearActualFull=calcYear();
+    for(const t of ts){
+      const pl=planForTarget(t);
+      const yAct=yearActualFull[t]?.tot||0;
+      const yPlan=pl.planTotal;
+      const mAct=act[t]?.tot||0;
+      const mModAct=act[t]?.modTime||0;
+      const sAct=semAct[t]?.tot||0;
+      const sModAct=semAct[t]?.modTime||0;
+      const sPlan=bySem[t][sem];
+      const sModPlan=modBySem[t][sem];
+      const row=[t,fmtN(yAct)||0,yPlan||0,yPlan?yAct-yPlan:0];
+      for(const w of validWks){
+        row.push(calcWeek(m,w)[t]?.tot||0);
+      }
+      row.push(mAct);if(showMod)row.push(mModAct);
+      row.push(sAct);if(showMod)row.push(sModAct);
+      row.push(sPlan);if(showMod)row.push(sModPlan);
+      row.push(sPlan?sAct-sPlan:0);
+      mAoa.push(row);
+    }
+    const wsM=XLSX.utils.aoa_to_sheet(mAoa);
+    XLSX.utils.book_append_sheet(wb,wsM,`${m}月`);
+  }
+
+  const fname=`${S.year}年度_${cls}_授業実施時数レポート_${untilMonth}月末.xlsx`;
+  XLSX.writeFile(wb,fname);
+}
+
 function init(){
   const td=new Date();
   document.getElementById('hd-today').textContent=`${td.getFullYear()}年${td.getMonth()+1}月${td.getDate()}日`;
   initYearSel();
   document.getElementById('inp-class').value=S.cls||'';
   document.getElementById('inp-teacher').value=S.teacher||'';
+  document.getElementById('inp-school').oninput=e=>{S.schoolName=e.target.value;updateSchoolNameWarn();save();};
   document.getElementById('inp-class').oninput=e=>{S.cls=e.target.value;save();};
   document.getElementById('inp-teacher').oninput=e=>{S.teacher=e.target.value;save();};
   // ヘッダーボタン
