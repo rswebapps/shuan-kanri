@@ -18,16 +18,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1a6fc4">
+<meta name="theme-color" content="#324851">
 <link rel="manifest" href="manifest.json">
 <title>週案管理 RC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.5.0/ical.min.js"></script>
 <style>
 :root{
-  --blue:#1a6fc4;--blue-lt:#e8f2fc;--sem1:#1a6fc4;--sem2:#2e7d32;--sem3:#7b1fa2;
+  --blue:#324851;--blue-lt:#e4ecee;--sem1:#324851;--sem2:#2e7d32;--sem3:#7b1fa2;
   --bg:#f2f5f9;--card:#fff;--border:#d8dde6;--text:#2c3e50;--muted:#8a93a0;
-  --col-full:#1a6fc4;--col-half:#e65100;--col-mod:#7b1fa2;--col-plan:#558b2f;
+  --col-full:#324851;--col-half:#e65100;--col-mod:#7b1fa2;--col-plan:#558b2f;
   --col-pos:#2e7d32;--col-neg:#c62828;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -69,6 +69,18 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
   white-space:nowrap;transition:background .12s}
 .hd-btn:hover{background:rgba(255,255,255,.32)}
 .hd-btn.accent{background:rgba(255,255,255,.28);font-weight:700}
+/* ── ヘッダー個別ボタン色 ── */
+#btn-open-file{background:#dce8f5!important;color:#324851!important;border-color:#b3cceb!important}
+#btn-open-file:hover{background:#b3cceb!important}
+#btn-save-file{background:#ffd54f!important;color:#324851!important;border-color:#ffb300!important}
+#btn-save-file:hover{background:#ffb300!important}
+#btn-exit{background:#ef9a9a!important;color:#7f0000!important;border-color:#e57373!important}
+#btn-exit:hover{background:#e57373!important}
+/* ── 週ナビボタン色 ── */
+#btn-prev-week,#btn-next-week{background:rgba(255,255,255,.15)!important;color:#fff!important;border-color:rgba(255,255,255,.3)!important}
+#btn-prev-week:hover,#btn-next-week:hover{background:rgba(255,255,255,.3)!important}
+#btn-today{background:#ffe082!important;color:#324851!important;font-weight:700!important;border-color:#ffca28!important}
+#btn-today:hover{background:#ffca28!important;color:#1a4f7a!important}
 /* SEMBAR */
 #sembar{background:var(--card);border-bottom:2px solid var(--border);
   display:flex;align-items:flex-end;padding:0 12px;flex-shrink:0}
@@ -77,7 +89,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
   transition:all .15s;border-radius:4px 4px 0 0;white-space:nowrap}
 .stab:hover{background:#f5f6f8}
 .stab.cfg.on{color:#444;border-bottom-color:#555;background:#f5f6f8}
-.stab[data-sem="1"].on{color:var(--sem1);border-bottom-color:var(--sem1);background:#e8f2fc}
+.stab[data-sem="1"].on{color:var(--sem1);border-bottom-color:var(--sem1);background:#e4ecee}
 .stab[data-sem="2"].on{color:var(--sem2);border-bottom-color:var(--sem2);background:#e8f5e9}
 .stab[data-sem="3"].on{color:var(--sem3);border-bottom-color:var(--sem3);background:#f3e5f5}
 .stab[data-sem="year"].on{color:#bf360c;border-bottom-color:#bf360c;background:#fff3e0}
@@ -144,10 +156,10 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
 .vac-workdays{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px}
 .vac-wd-item{display:flex;align-items:center;gap:2px;background:#f0f4f9;border-radius:4px;padding:2px 4px}
 .vac-wd-item input[type=date]{font-size:11px;border:1px solid var(--border);border-radius:3px;padding:1px 3px;font-family:inherit}
-.vac-add-btn{padding:2px 8px;font-size:11px;background:#e8f2fc;color:var(--blue);border:1px solid #bdd6f0;border-radius:4px;cursor:pointer;font-family:inherit}
+.vac-add-btn{padding:2px 8px;font-size:11px;background:#e4ecee;color:var(--blue);border:1px solid #b0c4de;border-radius:4px;cursor:pointer;font-family:inherit}
 .vac-add-btn:disabled{opacity:.4;cursor:default}
 .vac-del-btn{background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;padding:0 2px;line-height:1}
-.rbtn-up,.rbtn-dn{background:#e8f2fc;color:var(--blue);border-color:#bdd6f0}
+.rbtn-up,.rbtn-dn{background:#e4ecee;color:var(--blue);border-color:#b0c4de}
 .rbtn-del{background:#ffebee;color:#c62828;border-color:#ffcdd2}
 .btn-add{padding:5px 12px;background:var(--blue);color:#fff;border:none;
   border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;margin-top:8px}
@@ -169,7 +181,7 @@ table#tt{border-collapse:collapse;width:100%;min-width:580px}
   font-size:12px;font-weight:600;position:sticky;top:0;z-index:10;white-space:nowrap}
 .th-sl{width:64px;left:0;z-index:15}
 .th-dy{min-width:100px}
-.th-sat{background:#1565c0!important}
+.th-sat{background:#324851!important}
 .th-sun{background:#b71c1c!important}
 td.sltd{background:#f7f9fc;font-size:11px;font-weight:700;text-align:center;
   padding:4px;border-right:2px solid var(--blue);position:sticky;left:0;z-index:5;
@@ -186,7 +198,7 @@ td.memo-hd.schedule-hd{background:#e0f2f1;color:#00695c;border-right-color:#26a6
 td.memo-cell.schedule-cell{background:#e0f2f1;border-color:#80cbc4}
 .schedule-inp.selected{background:#b2dfdb!important;outline:2px solid #26a69a;}
 .schedule-display{font-size:11px;color:var(--text);line-height:1.5;padding:2px 3px;min-height:20px;word-break:break-all}
-td.memo-hd.leave-hd{background:#e8f5e9;color:#2e7d32;border-right-color:#43a047}td.memo-hd.hw-hd{background:#e3f2fd;color:#1565c0;border-right-color:#1e88e5}
+td.memo-hd.leave-hd{background:#e8f5e9;color:#2e7d32;border-right-color:#43a047}td.memo-hd.hw-hd{background:#e3f2fd;color:#324851;border-right-color:#1e88e5}
 td.memo-hd.renraku-hd{background:#e8eaf6;color:#283593;border-right-color:#3949ab}
 td.memo-hd.aim-hd{background:#fff8e1;color:#f57f17;border-right-color:#ffb300}
 td.memo-hd.notice-hd{background:#fce4ec;color:#880e4f;border-right-color:#e91e63}
@@ -275,7 +287,7 @@ table.jt tfoot td:first-child{text-align:left}
 .scard{background:var(--card);border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);
   overflow:hidden;margin-bottom:20px}
 .scardh{padding:10px 14px;font-size:13px;font-weight:700;border-bottom:2px solid var(--border)}
-.scardh.s1{background:#e8f2fc;color:var(--sem1)}
+.scardh.s1{background:#e4ecee;color:var(--sem1)}
 .scardh.s2{background:#e8f5e9;color:var(--sem2)}
 .scardh.s3{background:#f3e5f5;color:var(--sem3)}
 .scardh.sy{background:#fff3e0;color:#bf360c}
@@ -342,7 +354,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   #tt th{background:#444!important;color:#fff!important;padding:2px 3px!important;
     font-size:8px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .th-sl{width:42px!important}
-  .th-sat{background:#1565c0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .th-sat{background:#324851!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .th-sun{background:#b71c1c!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sltd{background:#f0f4f9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;
     font-size:7px!important;padding:1px 2px!important;width:42px!important}
@@ -445,7 +457,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
 .mbcancel{background:#f5f6f8;border-color:var(--border);color:var(--muted)}
 /* ─── 起動画面オーバーレイ ──────────────────────────────────── */
 #startup-overlay{display:none;position:fixed;inset:0;z-index:300;
-  background:linear-gradient(140deg,#1a4a8a 0%,#1a6fc4 100%);
+  background:linear-gradient(140deg,#1a2e34 0%,#324851 55%,#4a6572 100%);
   align-items:center;justify-content:center}
 #startup-overlay.on{display:flex}
 #startup-card{background:#fff;border-radius:16px;padding:44px 52px;
@@ -461,7 +473,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
 .startup-btn-text{display:flex;flex-direction:column;gap:2px}
 .startup-btn-text small{font-size:10px;font-weight:400;opacity:.75}
 .startup-btn-load{background:var(--blue);color:#fff}
-.startup-btn-load:hover{background:#155fa0}
+.startup-btn-load:hover{background:#243740}
 .startup-btn-new{background:#f0f4f9;color:var(--text);border:1.5px solid var(--border)}
 .startup-btn-new:hover{background:#e0e8f5;border-color:var(--blue);color:var(--blue)}
 /* ─── 必須項目セットアップモーダル ──────────────────────────── */
@@ -524,7 +536,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <span class="sep" style="opacity:.25">|</span>
   <button class="hd-btn" id="btn-open-file">📂 週案データを開く</button>
   <button class="hd-btn accent" id="btn-save-file">💾 週案データを保存</button>
-  <button class="hd-btn" id="btn-exit" style="border-color:rgba(255,255,255,.5)">✕ 終了</button>
+  <button class="hd-btn" id="btn-exit">✕ 終了</button>
   <span class="sep" style="opacity:.25">|</span>
   <div id="week-nav-btns" style="display:none;align-items:center;gap:4px">
     <button class="hd-btn" id="btn-prev-week">◀ 前週</button>
@@ -688,7 +700,7 @@ const CHILD_COLORS=['#e53935','#8e24aa','#1e88e5','#00897b','#43a047','#fb8c00',
 const CHILD_IDS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const MAX_CHILDREN=26;
 const SEMS={
-  '1':{label:'1学期',months:[4,5,6,7,8],color:'#1a6fc4',cls:'s1'},
+  '1':{label:'1学期',months:[4,5,6,7,8],color:'#324851',cls:'s1'},
   '2':{label:'2学期',months:[9,10,11,12],color:'#2e7d32',cls:'s2'},
   '3':{label:'3学期',months:[1,2,3],color:'#7b1fa2',cls:'s3'}
 };
@@ -703,7 +715,7 @@ const DAY_OFFSETS={sun:-1,mon:0,tue:1,wed:2,thu:3,fri:4,sat:5};
 const DKEYS=['sun','mon','tue','wed','thu','fri','sat'];
 
 const SCOLORS={
-  '国語':'#c62828','書写':'#c62828','図書':'#c62828','算数':'#1565c0',
+  '国語':'#c62828','書写':'#c62828','図書':'#c62828','算数':'#324851',
   '理科':'#2e7d32','社会':'#e65100','道徳':'#7b1fa2','外国語':'#00796b','体育':'#bf360c',
   '外国語活動':'#00796b','音楽':'#f59d00','図画工作':'#8e24aa','家庭':'#c2185b','総合':'#0277bd',
   '学活':'#558b2f','生活':'#827717','行事':'#546e7a','生活単元':'#5d4037','自立':'#37474f'
@@ -2123,7 +2135,7 @@ function printSchedule(m){
     const dow=dt.getDay();
     const val=S.schedule[iso]||'';
     const isSat=dow===6,isSun=dow===0;
-    const dowColor=isSun?'color:#c62828':isSat?'color:#1565c0':'';
+    const dowColor=isSun?'color:#c62828':isSat?'color:#324851':'';
     const rowBg=val?'':(isSun?'background:#fff5f5':isSat?'background:#f5f9ff':'background:#fafafa');
     rows+=`<tr style="${rowBg}">
       <td style="${dowColor}">${m}/${d}</td>
@@ -2186,7 +2198,7 @@ function renderScheduleTable(){  const tbody=document.getElementById('schedule-b
     const iso=localDateStr(dt);
     const dow=dt.getDay();
     const val=S.schedule[iso]||'';
-    const dowColor=dow===0?'color:#b71c1c':dow===6?'color:#1565c0':'';
+    const dowColor=dow===0?'color:#b71c1c':dow===6?'color:#324851':'';
     rows+=`<tr>
       <td style="white-space:nowrap;font-size:12px">${m}/${d}</td>
       <td style="text-align:center;font-size:12px;${dowColor}">${DAY_JP[dow]}</td>
@@ -3586,7 +3598,7 @@ function refreshWbar(){
   }
   dayBtns.innerHTML=`
     <button id="btn-sat" class="wbtn${S.showSat?' on':''}"
-      style="font-size:11px;border-color:#1565c0;${S.showSat?'background:#1565c0;color:#fff':'color:#1565c0'}">土曜</button>
+      style="font-size:11px;border-color:#324851;${S.showSat?'background:#324851;color:#fff':'color:#324851'}">土曜</button>
     <button id="btn-sun" class="wbtn${S.showSun?' on':''}"
       style="font-size:11px;border-color:#b71c1c;${S.showSun?'background:#b71c1c;color:#fff':'color:#b71c1c'}">日曜</button>`;
   document.getElementById('btn-sat').onclick=()=>{S.showSat=!S.showSat;save();refreshWbar();renderTT();};
@@ -4580,7 +4592,7 @@ function buildReportAHtml(untilMonth){
     const yPlan=pl.planTotal;
     totYAct+=yAct; totYPlan+=yPlan;
     const yDiff=yAct-yPlan;
-    const ydc=Math.abs(yDiff)<0.01?'':`color:${yDiff>=0?'#1565c0':'#c62828'}`;
+    const ydc=Math.abs(yDiff)<0.01?'':`color:${yDiff>=0?'#324851':'#c62828'}`;
     let row=`<td class="tn">${t}</td><td>${fmtR1(yAct)||0}</td><td>${yPlan||0}</td><td style="${ydc}">${yPlan?fmtDiffR1(yDiff):'-'}</td>`;
     for(const sem of ['1','2','3']){
       for(const m of SEMS[sem].months){
@@ -4593,7 +4605,7 @@ function buildReportAHtml(untilMonth){
       const sPlan=bySem[t]?.[sem]||0;
       const sModP=modBySem[t]?.[sem]||0;
       const sDiff=sAct-sPlan;
-      const sdc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#1565c0':'#c62828'}`;
+      const sdc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#324851':'#c62828'}`;
       semTot[sem].act+=sAct; semTot[sem].modA+=sModA; semTot[sem].plan+=sPlan; semTot[sem].modP+=sModP; // modAは時数
       row+=`<td>${fmtR1(sAct)||'-'}</td>${showMod?`<td>${fmtR1(sModA)||'-'}</td>`:''}<td>${sPlan||'-'}</td>${showMod?`<td>${sModP||'-'}</td>`:''}<td style="${sdc}">${sPlan?fmtDiffR1(sDiff):'-'}</td>`;
     }
@@ -4602,7 +4614,7 @@ function buildReportAHtml(untilMonth){
 
   // 合計行
   const yTotDiff=totYAct-totYPlan;
-  const ytdc=Math.abs(yTotDiff)<0.01?'':`color:${yTotDiff>=0?'#1565c0':'#c62828'}`;
+  const ytdc=Math.abs(yTotDiff)<0.01?'':`color:${yTotDiff>=0?'#324851':'#c62828'}`;
   let ftRow=`<td class="tn">合計</td><td>${fmtR1nz(totYAct)}</td><td>${totYPlan||0}</td><td style="${ytdc}">${totYPlan?fmtDiffR1(yTotDiff):'-'}</td>`;
   for(const sem of ['1','2','3']){
     for(const m of SEMS[sem].months){
@@ -4611,7 +4623,7 @@ function buildReportAHtml(untilMonth){
     }
     const{act,modA,plan,modP}=semTot[sem];
     const sDiff=act-plan;
-    const sdc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#1565c0':'#c62828'}`;
+    const sdc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#324851':'#c62828'}`;
     ftRow+=`<td>${fmtR1nz(act)}</td>${showMod?`<td>${fmtR1(modA)||'-'}</td>`:''}<td>${plan||'-'}</td>${showMod?`<td>${modP||'-'}</td>`:''}<td style="${sdc}">${plan?fmtDiffR1(sDiff):'-'}</td>`;
   }
 
@@ -4689,7 +4701,7 @@ function buildReportBHtml(untilMonth){
         const sPlan=bySem[t]?.[sem]||0;
         const sModPlan=modBySem[t]?.[sem]||0;
         const sDiff=sAct-sPlan;
-        const dc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#1565c0':'#c62828'}`;
+        const dc=Math.abs(sDiff)<0.01?'':`color:${sDiff>=0?'#324851':'#c62828'}`;
         let row=`<td class="tn">${t}</td>`;
         for(const w of validWks) row+=`<td>${fmtR1(calcWeek(m,w)[t]?.tot)||'-'}</td>`;
         row+=`<td class="mc">${fmtR1(mAct)||'-'}</td>${showMod?`<td>${fmtR1(mModAct)||'-'}</td>`:''}`
@@ -4707,7 +4719,7 @@ function buildReportBHtml(untilMonth){
       const sTotPlan=ts.reduce((s,t)=>s+(bySem[t]?.[sem]||0),0);
       const sTotModP=ts.reduce((s,t)=>s+(modBySem[t]?.[sem]||0),0);
       const sTotDiff=sTotAct-sTotPlan;
-      const tdc=Math.abs(sTotDiff)<0.01?'':`color:${sTotDiff>=0?'#1565c0':'#c62828'}`;
+      const tdc=Math.abs(sTotDiff)<0.01?'':`color:${sTotDiff>=0?'#324851':'#c62828'}`;
       let ftRow=`<td class="tn">合計</td>`;
       for(const w of validWks) ftRow+=`<td>${fmtR1(ts.reduce((s,t)=>s+(calcWeek(m,w)[t]?.tot||0),0))||'-'}</td>`;
       ftRow+=`<td class="mc">${fmtR1nz(mTotAct)}</td>${showMod?`<td>${fmtR1(mTotMod)||'-'}</td>`:''}`
