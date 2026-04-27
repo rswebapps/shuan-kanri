@@ -33,7 +33,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
   background:var(--bg);color:var(--text);font-size:13px;height:100vh;
-  display:flex;flex-direction:column;overflow:hidden}
+  display:flex;flex-direction:column;overflow:hidden;
+  user-select:none;-webkit-user-select:none}
 /* HEADER */
 #hd{background:var(--blue);color:#fff;padding:0 14px;height:46px;display:flex;
   align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -191,13 +192,13 @@ td.sltd.gyo{background:#fff8e1;color:#e65100}
 td.sltd.hiru{background:#fce4ec;color:#880e4f}
 td.sltd.owari{background:#e8eaf6;color:#283593}
 /* メモ行スタイル */
-td.memo-hd{background:#fffde7;font-size:10px;font-weight:700;text-align:center;
+td.memo-hd{background:#fffde7;font-size:15px;font-weight:700;text-align:center;
   padding:2px 4px;border-right:2px solid #f9a825;position:sticky;left:0;z-index:5;
   color:#f57f17;white-space:nowrap;vertical-align:middle}
 td.memo-hd.schedule-hd{background:#e0f2f1;color:#00695c;border-right-color:#26a69a}
 td.memo-cell.schedule-cell{background:#e0f2f1;border-color:#80cbc4}
 .schedule-inp.selected{background:#b2dfdb!important;outline:2px solid #26a69a;}
-.schedule-display{font-size:11px;color:var(--text);line-height:1.5;padding:2px 3px;min-height:20px;word-break:break-all}
+.schedule-display{font-size:15px;color:var(--text);line-height:1.5;padding:2px 3px;min-height:20px;word-break:break-all}
 td.memo-hd.leave-hd{background:#e8f5e9;color:#2e7d32;border-right-color:#43a047}td.memo-hd.hw-hd{background:#e3f2fd;color:#324851;border-right-color:#1e88e5}
 td.memo-hd.renraku-hd{background:#e8eaf6;color:#283593;border-right-color:#3949ab}
 td.memo-hd.aim-hd{background:#fff8e1;color:#f57f17;border-right-color:#ffb300}
@@ -211,7 +212,7 @@ td.memo-cell.aim-cell{background:#fff8e1;border-color:#ffe082}
 td.memo-cell.notice-cell{background:#fce4ec;border-color:#f48fb1}
 td.memo-cell.note-cell{background:#f3e5f5;border-color:#ce93d8}
 td.memo-cell textarea{width:100%;border:none;background:transparent;font-family:inherit;
-  font-size:11px;resize:none;padding:1px 3px;outline:none;color:var(--text);
+  font-size:15px;resize:none;padding:1px 3px;outline:none;color:var(--text);
   min-height:20px;overflow:hidden}
 /* 授業セル */
 td.cell{border:1px solid var(--border);vertical-align:top;cursor:pointer;
@@ -230,6 +231,11 @@ td.cell.inactive:hover{background:#ebebeb!important}
   padding:2px 6px;border-radius:10px;border:1.5px solid;font-size:11px;font-weight:700;
   transition:all .12s;user-select:none}
 .cin{display:flex;flex-direction:column;min-height:54px;padding:3px}
+/* テキスト選択を許可する要素 */
+textarea,input[type="text"],input[type="number"],input[type="date"],
+.cmemo,.sname,.jt td,.jt th,.stbl td,.stbl th,
+#sum-content td,#sum-content th,
+#rpt-print-root{user-select:text;-webkit-user-select:text}
 .srow{display:flex;align-items:flex-start;gap:2px}
 .sname{font-size:20px;font-weight:700;line-height:1.3;flex:1}
 .tbadge{font-size:9px;padding:0 3px;border-radius:8px;font-weight:700;flex-shrink:0;margin-top:1px}
@@ -237,7 +243,7 @@ td.cell.inactive:hover{background:#ebebeb!important}
 .tb-h{background:#fff3e0;color:var(--col-half)}
 .tb-m{background:#f3e5f5;color:var(--col-mod)}
 .csep{border-top:1px dashed #dde1e8;margin:2px 0}
-.cmemo{font-size:10px;color:var(--muted);line-height:1.3;white-space:pre-line}
+.cmemo{font-size:15px;color:var(--muted);line-height:1.3;white-space:pre-line}
 .cempty{color:#c8cdd6;font-size:11px;margin:auto;text-align:center}
 .cbadges{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px}
 .cbadges-sub{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;padding-left:2px}
@@ -369,21 +375,21 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   /* 教科名：教科色を維持しつつ印刷で確実に表示 */
   .sname{font-size:13px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* メモ・バッジ類は黒で統一 */
-  .cmemo{font-size:7px!important;color:#333!important}
+  .cmemo{font-size:14px!important;color:#333!important}
   .tbadge{font-size:6px!important;padding:0 2px!important;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  td.memo-hd{font-size:7px!important;padding:1px 2px!important;color:#333!important}
+  td.memo-hd{font-size:14px!important;padding:1px 2px!important;color:#333!important}
   td.memo-cell{padding:1px 2px!important}
-  td.memo-cell textarea{font-size:7px!important;color:#333!important;border:none!important;
+  td.memo-cell textarea{font-size:14px!important;color:#333!important;border:none!important;
     background:transparent!important;resize:none!important;height:auto!important;
     overflow:visible!important;min-height:10px!important}
   .kbadge{width:10px!important;height:10px!important;font-size:6px!important;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cbadges-sub{gap:1px!important;margin-top:1px!important}
   /* textarea→div変換後：黒で表示 */
-  .print-ta-div{font-size:7px!important;white-space:pre-wrap;word-break:break-all;
+  .print-ta-div{font-size:14px!important;white-space:pre-wrap;word-break:break-all;
     color:#333!important;padding:1px 2px;min-height:8px;line-height:1.3}
-  .schedule-display{font-size:7px!important;color:#333!important;line-height:1.4!important;padding:1px 2px!important}
+  .schedule-display{font-size:14px!important;color:#333!important;line-height:1.4!important;padding:1px 2px!important}
   td.memo-hd.schedule-hd,td.memo-cell.schedule-cell{background:#e0f2f1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.memo-hd.leave-hd,td.memo-cell.leave-cell{background:#e8f5e9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.memo-hd.hw-hd,td.memo-cell.hw-cell{background:#e3f2fd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -401,9 +407,17 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   #print-summary td:first-child{text-align:left;font-weight:600}
   #print-summary .rate-red{color:#c62828!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #print-summary .rate-yellow{color:#e65100!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* 非アクティブ列ヘッダーに「集計外」を印刷時のみ表示 */
+  th[data-inactive="1"]::after{
+    content:'集計外';display:block;font-size:6px;font-weight:400;
+    color:#888;margin-top:1px;letter-spacing:0
+  }
   /* 3表を横並び、1ページに収まらない場合のみ改ページ */
   .ps-row{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;page-break-inside:avoid}
   .ps-row>div{break-inside:avoid}
+  /* 非アクティブ日（月またぎ）: 印刷時はアクティブ日と同じ表示 */
+  td.cell.inactive{background:inherit!important;opacity:1!important;cursor:default!important}
+  td.cell.inactive:hover{background:inherit!important}
   td.memo-hd.note-hd,td.memo-cell.note-cell{background:#f9f0ff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* メモ1〜5は空でも最低高さを確保して枠を表示 */
   td.memo-cell.note-cell .print-ta-div,
@@ -523,16 +537,44 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   cursor:pointer;animation:blink 2s infinite}
 #hd-pwa-status.update:hover{background:#ffcdd2}
 #hd-pwa-status.checking{display:block;background:#f0f2f6;color:var(--muted)}
+/* ─ 印刷オーバーレイ ─ */
+@media print{
+  /* 実施報告印刷中のみ body.rpt-printing クラスが付与される */
+  body.rpt-printing>*:not(#rpt-print-root){display:none!important}
+  body.rpt-printing #rpt-print-root{display:block!important}
+}
+#rpt-print-root .rpt-page{width:277mm;height:190mm;overflow:hidden;position:relative;page-break-after:always;display:flex;flex-direction:column;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif}
+#rpt-print-root .rpt-inner{width:100%;height:100%;display:flex;flex-direction:column;transform-origin:top left}
+#rpt-print-root .rpt-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2mm;flex-shrink:0}
+#rpt-print-root .rpt-title{font-size:13pt;font-weight:700}
+#rpt-print-root .rpt-sub{font-size:9.5pt}
+#rpt-print-root .rpt-tbl{border-collapse:collapse;width:100%;table-layout:fixed}
+#rpt-print-root .rpt-tbl th,#rpt-print-root .rpt-tbl td{border:1px solid #999;padding:2px 3px;text-align:right;font-size:9pt;overflow:hidden;white-space:nowrap}
+#rpt-print-root .rpt-tbl th{background:#dde4f0;text-align:center;font-weight:600}
+#rpt-print-root .rpt-a .rpt-tbl th.mon-hd{font-size:7pt;padding:1px}
+#rpt-print-root .rpt-tbl tfoot .ft td{background:#eef1f8;font-weight:700}
+#rpt-print-root .tn{text-align:left!important;font-weight:600}
+#rpt-print-root .mc{font-weight:700;background:#f5f7ff}
+#rpt-print-root .rpt-a .rpt-inner{justify-content:space-between}
+#rpt-print-root .rpt-a .rpt-tbl{flex:1}
+#rpt-print-root .stamp-row{display:flex;gap:4mm;justify-content:flex-end;margin-top:2mm;flex-shrink:0}
+#rpt-print-root .stamp-box{text-align:center}
+#rpt-print-root .stamp-lbl{font-size:7pt;margin-bottom:1mm}
+#rpt-print-root .stamp-seal{border:1px solid #999;width:22mm;height:15mm}
+#rpt-print-root .b-blocks{display:flex;gap:2mm;flex:1;align-items:stretch;overflow:hidden}
+#rpt-print-root .b-block{width:calc(50% - 1mm);min-width:calc(50% - 1mm);max-width:calc(50% - 1mm);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden}
+#rpt-print-root .b-tbl{width:100%!important;table-layout:fixed!important;height:100%}
 </style>
 </head>
 <body>
+<div id="rpt-print-root" style="display:none"></div>
 <div id="hd">
   <h1>📋 週案管理</h1>
   <span class="sep">|</span>
   <div class="hdf"><label>年度</label><select id="inp-year"></select></div>
   <div class="hdf"><input id="inp-school" placeholder="学校名を入力" maxlength="20" title="学校名（レポート出力に使用）" style="width:140px"></div>
   <div class="hdf"><label>学級</label><input id="inp-class" placeholder="例：3年2組" maxlength="12" style="width:90px"></div>
-  <div class="hdf"><label>担任</label><input id="inp-teacher" placeholder="担任名" maxlength="12" style="width:80px"></div>
+  <div class="hdf"><label>担任</label><input id="inp-teacher" placeholder="担任名" maxlength="12"></div>
   <span class="sep" style="opacity:.25">|</span>
   <button class="hd-btn" id="btn-open-file">📂 週案データを開く</button>
   <button class="hd-btn accent" id="btn-save-file">💾 週案データを保存</button>
@@ -716,9 +758,9 @@ const DKEYS=['sun','mon','tue','wed','thu','fri','sat'];
 
 const SCOLORS={
   '国語':'#c62828','書写':'#c62828','図書':'#c62828','算数':'#324851',
-  '理科':'#2e7d32','社会':'#e65100','道徳':'#7b1fa2','外国語':'#00796b','体育':'#bf360c',
-  '外国語活動':'#00796b','音楽':'#f59d00','図画工作':'#8e24aa','家庭':'#c2185b','総合':'#0277bd',
-  '学活':'#558b2f','生活':'#827717','行事':'#546e7a','生活単元':'#5d4037','自立':'#37474f'
+  '理科':'#2e7d32','社会':'#e65100','道徳':'#7b1fa2','外語':'#00796b','体育':'#bf360c',
+  '外活':'#00796b','音楽':'#f59d00','図工':'#8e24aa','家庭':'#c2185b','総合':'#0277bd',
+  '学活':'#558b2f','生活':'#827717','行事':'#546e7a','生単':'#5d4037','自立':'#37474f'
 };
 
 // ─── 教科マスターリスト（除外条件付き） ─────────────────────────
@@ -733,18 +775,18 @@ const SUBJECT_MASTER=[
   {id:'s6',  label:'理科',     target:'理科',     excludeGrades:[1,2],     excludeClassType:null},
   {id:'s7',  label:'生活',     target:'生活',     excludeGrades:[3,4,5,6], excludeClassType:null},
   {id:'s8',  label:'音楽',     target:'音楽',     excludeGrades:[],        excludeClassType:null},
-  {id:'s9',  label:'図画工作', target:'図画工作', excludeGrades:[],        excludeClassType:null},
+  {id:'s9',  label:'図画工作', target:'図工',    excludeGrades:[],        excludeClassType:null},
   {id:'s10', label:'家庭',     target:'家庭',     excludeGrades:[1,2,3,4], excludeClassType:null},
   {id:'s11', label:'体育',     target:'体育',     excludeGrades:[],        excludeClassType:null},
   {id:'s12', label:'道徳',     target:'道徳',     excludeGrades:[],        excludeClassType:null},
-  {id:'s13', label:'外国語',   target:'外国語',   excludeGrades:[1,2,3,4], excludeClassType:null},
-  {id:'s14', label:'外国語活動',target:'外国語活動',excludeGrades:[1,2,5,6],excludeClassType:null},
+  {id:'s13', label:'外国語',   target:'外語',    excludeGrades:[1,2,3,4], excludeClassType:null},
+  {id:'s14', label:'外国語活動',target:'外活',   excludeGrades:[1,2,5,6],excludeClassType:null},
   {id:'s15', label:'総合',     target:'総合',     excludeGrades:[1,2],     excludeClassType:null},
   {id:'s16', label:'学活',     target:'特活',     excludeGrades:[],        excludeClassType:null},
   {id:'s17', label:'委員会',   target:'特活',     excludeGrades:[1,2,3,4], excludeClassType:null},
   {id:'s18', label:'クラブ',   target:'特活',     excludeGrades:[1,2,3],   excludeClassType:null},
   {id:'s19', label:'行事',     target:'行事',     excludeGrades:[],        excludeClassType:null},
-  {id:'s20', label:'生単',     target:'生活単元', excludeGrades:[],        excludeClassType:'normal'},
+  {id:'s20', label:'生単',     target:'生単',    excludeGrades:[],        excludeClassType:'normal'},
   {id:'s21', label:'自立',     target:'自立',     excludeGrades:[],        excludeClassType:'normal'},
 ];
 // 学年・学級タイプで教科が有効かどうか判定
@@ -765,12 +807,12 @@ const SUBJECT_STD_HOURS={
   '理科':       [  0,  0, 90,105,105,105],
   '生活':       [102,105,  0,  0,  0,  0],
   '音楽':       [ 68, 70, 60, 60, 50, 50],
-  '図画工作':   [ 68, 70, 60, 60, 50, 50],
+  '図工':        [ 68, 70, 60, 60, 50, 50],
   '家庭':       [  0,  0,  0,  0, 60, 55],
   '体育':       [102,105,105,105, 90, 90],
   '道徳':       [ 34, 35, 35, 35, 35, 35],
-  '外国語活動': [  0,  0, 35, 35,  0,  0],
-  '外国語':     [  0,  0,  0,  0, 70, 70],
+  '外活':       [  0,  0, 35, 35,  0,  0],
+  '外語':       [  0,  0,  0,  0, 70, 70],
   '総合':       [  0,  0, 70, 70, 70, 70],
   '学活':       [ 34, 35, 35, 35, 35, 35], // 特別活動の代表（委員会・クラブを含む）
 };
@@ -795,12 +837,12 @@ function defSubjectsForGrade(grade, classType){
 // ③ 教科名ひらがな辞書（配布用印刷で使用）
 const HIRA={
   '国語':'こくご','社会':'しゃかい','算数':'さんすう','理科':'りか',
-  '生活':'せいかつ','音楽':'おんがく','図画工作':'ずがこうさく',
+  '生活':'せいかつ','音楽':'おんがく','図工':'ずこう',
   '家庭':'かてい','体育':'たいいく','道徳':'どうとく',
-  '外国語':'がいこくご','総合':'そうごう','学活':'がっかつ',
+  '外語':'がいご','外活':'がいかつ','総合':'そうごう','学活':'がっかつ',
   '図書':'としょ','書写':'しょしゃ','行事':'ぎょうじ',
   // 追加教科
-  '生活単元':'せいかつたんげん','生単':'せいたん',
+  '生単':'せいたん',
   '特活':'とっかつ','児童会':'じどうかい','自立':'じりつ'
 };
 // ② UI要素ひらがな辞書（曜日ヘッダー・スロット・メモラベル）
@@ -869,8 +911,46 @@ function curAcYear(){const n=new Date();return n.getFullYear()-(n.getMonth()<3?1
 // ─── STORAGE ─────────────────────────────────────────────────────
 // ② 教科targetマイグレーション（学活→特活）
 function migrateSubjectTargets(){
+  // 旧マイグレーション（学活→特活）
   S.subjects.forEach(s=>{if(s.label==='学活'&&s.target==='学活')s.target='特活';});
+  // 教科名短縮マイグレーション（旧名称→新名称への自動変換）
+  const TARGET_MAP={'図画工作':'図工','外国語活動':'外活','外国語':'外語','生活単元':'生単'};
+  const OLD_TARGETS=Object.keys(TARGET_MAP);
+  const changed=[];
+  S.subjects.forEach(s=>{
+    if(TARGET_MAP[s.target]){
+      // 同じ変換をまだ記録していない場合のみ追加
+      if(!changed.some(c=>c.from===s.target))
+        changed.push({from:s.target,to:TARGET_MAP[s.target]});
+      s.target=TARGET_MAP[s.target];
+    }
+  });
+  return changed; // 変換があった場合はリストを返す、なければ[]
 }
+function _showMigrationNotice(changed){
+  const existing=document.getElementById('migration-notice');
+  if(existing) existing.remove();
+  const list=changed.map(c=>`・${c.from} → ${c.to}`).join('<br>');
+  const el=document.createElement('div');
+  el.id='migration-notice';
+  el.style.cssText='position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:210;'+
+    'background:#fff;border:2px solid #324851;border-radius:8px;padding:18px 22px;'+
+    'box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:420px;font-size:13px;line-height:1.7';
+  el.innerHTML=`
+    <div style="font-weight:700;color:#324851;font-size:14px;margin-bottom:10px">📋 集計先教科名を更新しました</div>
+    <div style="margin-bottom:10px">以下の集計先教科名が新しい表記に変更されました。</div>
+    <div style="background:#f0f4f8;border-radius:5px;padding:8px 12px;margin-bottom:10px;font-weight:600;color:#1a2d34">${list}</div>
+    <div style="color:#555;font-size:12px;margin-bottom:14px">
+      旧表記で入力済みのデータは新表記に統合されるため、今後の集計に影響はありません。<br>
+      上書き保存すると、次回以降この通知は表示されません。
+    </div>
+    <div style="text-align:right">
+      <button id="migration-notice-ok" style="padding:6px 20px;background:#324851;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer">確認</button>
+    </div>`;
+  document.body.appendChild(el);
+  document.getElementById('migration-notice-ok').onclick=()=>el.remove();
+}
+
 function migrateSlotLabels(){
   const map={asa:'朝モ',hiru:'昼モ',owari:'終モ'};
   const old={asa:'朝',hiru:'昼',owari:'終'};
@@ -981,9 +1061,9 @@ function planForTarget(t){
     planMod:  a.planMod  +(+s.planMod  ||0)
   }),{planStd:0,planTotal:0,planFull:0,planMod:0});
 }
-function fmtN(n){if(!n)return'';const r=Math.round(n*100)/100;return r%1===0?String(r):r.toFixed(2);}
-function fmtNz(n){const r=Math.round(n*100)/100;return r%1===0?String(r):r.toFixed(2);}
-function fmtDiff(n){if(Math.abs(n)<0.01)return'±0';const a=Math.round(Math.abs(n)*100)/100;const s=a%1===0?String(a):a.toFixed(2);return(n>0?'+':'-')+s;}
+function fmtN(n){if(!n&&n!==0)return'';const r=Math.round(n*10)/10;return r===0?'':r.toFixed(1);}
+function fmtNz(n){return (Math.round((n||0)*10)/10).toFixed(1);}
+function fmtDiff(n){if(Math.abs(n)<0.05)return'±0.0';const a=Math.round(Math.abs(n)*10)/10;return(n>0?'+':'-')+a.toFixed(1);}
 // レポート用: 小数第1位表記（0は空文字）
 function fmtR1(n){if(!n&&n!==0)return'';const r=Math.round(n*10)/10;return r===0?'':r.toFixed(1);}
 function fmtR1nz(n){const r=Math.round((n||0)*10)/10;return r.toFixed(1);}
@@ -1151,7 +1231,8 @@ function applyJsonData(text,fh){
     if(!hadGrade) S.gradeSet=false; // 旧v4 JSONはgradeなし → 未設定確定
     S.subjects.forEach(s=>{if(s.planStd==null)s.planStd=0;});
     migrateSlotLabels();
-    migrateSubjectTargets();
+    const migratedTargets=migrateSubjectTargets();
+    if(migratedTargets&&migratedTargets.length>0) _showMigrationNotice(migratedTargets);
     if(S.grade==null) S.grade=3;
     if(S.classNum==null) S.classNum=1;
     if(S.gradeSet==null) S.gradeSet=false;
@@ -1474,7 +1555,7 @@ function renderSubjTable(){
       </td>
       <td>
         <select class="sj-tgt">${topts}</select>
-        <input type="text" class="sj-tnew" placeholder="新規対応先名" style="display:none;width:80px;margin-top:3px">
+        <input type="text" class="sj-tnew" placeholder="新規(2文字)" maxlength="2" style="display:none;width:70px;margin-top:3px" title="集計先教科名は2文字以内で入力してください">
       </td>
       <td><input type="number" class="sj-ps" value="${s.planStd||0}" min="0" style="width:50px"></td>
       <td><input type="number" class="sj-pt" value="${s.planTotal||0}" min="0" style="width:50px"></td>
@@ -1556,7 +1637,10 @@ function renderSubjTable(){
       if(tgt.value==='__new__'){tnew.style.display='block';tnew.focus();}
       else{tnew.style.display='none';S.subjects[i].target=tgt.value;save();}
     };
-    tnew.oninput=()=>{S.subjects[i].target=tnew.value;save();};
+    tnew.oninput=()=>{
+      if(tnew.value.length>2){tnew.value=tnew.value.slice(0,2);}
+      S.subjects[i].target=tnew.value;save();
+    };
     tnew.onblur=()=>{if(tnew.value.trim()) renderSubjTable();};
     ps.oninput=()=>{S.subjects[i].planStd=+ps.value||0;save();};
     pt.oninput=()=>{
@@ -2659,14 +2743,15 @@ function renderTT(){
   vdk.forEach(dk=>{
     const lbl=DAY_LABELS[dk];
     const iso=dkDate[dk];
+    const inactive=!dkActive[dk];  // ブロック外で定義
     let ds='';
     if(iso){
       const dt=new Date(iso);
-      const inactive=!dkActive[dk];
       ds=`<br><small style="font-weight:400;opacity:${inactive?.5:.85}">${dt.getMonth()+1}/${dt.getDate()}</small>`;
     }
     const xCls=dk==='sat'?' th-sat':dk==='sun'?' th-sun':'';
-    hh+=`<th class="th-dy${xCls}">${lbl}曜日${ds}</th>`;
+    const inactiveAttr=inactive?' data-inactive="1"':'';
+    hh+=`<th class="th-dy${xCls}"${inactiveAttr}>${lbl}曜日${ds}</th>`;
   });
   document.getElementById('tth').innerHTML=hh+'</tr>';
 
@@ -2829,6 +2914,8 @@ function renderTT(){
       setWeekMemo(curMonth,curWeek,ta.dataset.memokey,ta.value,ta.dataset.dk||null);
     });
   });
+  // メモセルキーボードナビゲーション
+  addMemoNavigation();
   // ─ 行事行 textarea（週案タブから直接編集）─
   document.querySelectorAll('textarea.schedule-ta').forEach(ta=>{
     autoGrowTA(ta);
@@ -2837,6 +2924,143 @@ function renderTT(){
       const iso=ta.dataset.isodate;
       if(iso) S.schedule[iso]=ta.value;
       save();
+    });
+  });
+}
+
+
+// ─── メモセルキーボードナビゲーション ────────────────────────────
+function addMemoNavigation(){
+  // 群①: 日別メモ（下校・宿題・連絡）
+  const G1_KEYS=['leave','hw','renraku'];
+  // 群②: 週単位メモ（週めあて・おしらせ・校内メモ1〜5）
+  const G2_KEYS=['weekly_aim','notice','note_0','note_1','note_2','note_3','note_4'];
+
+  // 群①のtextareaをキー×dk の2次元マップで保持
+  const g1map={}; // g1map[key][dk] = textarea
+  G1_KEYS.forEach(k=>{ g1map[k]={}; });
+  document.querySelectorAll('textarea[data-memokey]').forEach(ta=>{
+    const k=ta.dataset.memokey, dk=ta.dataset.dk;
+    if(G1_KEYS.includes(k)&&dk) g1map[k][dk]=ta;
+  });
+
+  // 群②のtextareaをキー順配列で保持
+  const g2list=[];
+  G2_KEYS.forEach(k=>{
+    const ta=document.querySelector(`textarea[data-memokey="${k}"]`);
+    if(ta) g2list.push(ta);
+  });
+
+  // 表示中の曜日キー順（左→右）
+  const dkOrder=[...document.querySelectorAll('#tth th[class*="th-dy"]')]
+    .map(th=>th.dataset?.dk).filter(Boolean);
+  // th に data-dk が無い場合、visibleDKeys() を代替に使う
+  const vdks=Object.keys(g1map['leave']||{});
+
+  // 最後にフォーカスしていた群①の dk を記憶
+  let lastG1Dk=null;
+
+  // 群①ナビ
+  G1_KEYS.forEach((key,ki)=>{
+    Object.entries(g1map[key]).forEach(([dk,ta])=>{
+      ta.addEventListener('focus',()=>{ lastG1Dk=dk; });
+      ta.addEventListener('keydown',e=>{
+        const shift=e.shiftKey;
+        if(e.key==='Tab'||e.key==='Enter'){
+          e.preventDefault();
+          if(shift){
+            // 上へ：同dk・前のキー
+            if(ki>0){
+              const prev=g1map[G1_KEYS[ki-1]][dk];
+              if(prev) prev.focus();
+            }
+          } else {
+            // 下へ：同dk・次のキー or 群②先頭
+            if(ki<G1_KEYS.length-1){
+              const next=g1map[G1_KEYS[ki+1]][dk];
+              if(next) next.focus();
+            } else {
+              if(g2list[0]) g2list[0].focus();
+            }
+          }
+        } else if(e.key==='ArrowLeft'){
+          // 前の曜日（同じキー）
+          const dks=Object.keys(g1map[key]);
+          const idx=dks.indexOf(dk);
+          if(idx>0){ e.preventDefault(); g1map[key][dks[idx-1]].focus(); }
+        } else if(e.key==='ArrowRight'){
+          // 次の曜日（同じキー）
+          const dks=Object.keys(g1map[key]);
+          const idx=dks.indexOf(dk);
+          if(idx<dks.length-1){ e.preventDefault(); g1map[key][dks[idx+1]].focus(); }
+        } else if(e.key==='ArrowDown'){
+          e.preventDefault();
+          if(ki<G1_KEYS.length-1){
+            // 同dk・次の群①行
+            const next=g1map[G1_KEYS[ki+1]][dk];
+            if(next) next.focus();
+          } else {
+            // 連絡行の末尾→群②先頭
+            if(g2list[0]) g2list[0].focus();
+          }
+        } else if(e.key==='ArrowUp'){
+          e.preventDefault();
+          if(ki>0){
+            // 同dk・前の群①行
+            const prev=g1map[G1_KEYS[ki-1]][dk];
+            if(prev) prev.focus();
+          } else {
+            // 下校行の先頭→群②末尾
+            const last=g2list[g2list.length-1];
+            if(last) last.focus();
+          }
+        }
+      });
+    });
+  });
+
+  // 群②ナビ
+  g2list.forEach((ta,gi)=>{
+    ta.addEventListener('keydown',e=>{
+      const shift=e.shiftKey;
+      if(e.key==='Tab'||e.key==='Enter'){
+        e.preventDefault();
+        if(shift){
+          // 上へ：前の群②要素 or 群①連絡行（直前dk）
+          if(gi>0){ g2list[gi-1].focus(); }
+          else {
+            const dk=lastG1Dk||Object.keys(g1map['renraku'])[0];
+            const prev=g1map['renraku'][dk];
+            if(prev) prev.focus();
+          }
+        } else {
+          // 下へ：次の群②要素 or 群①下校行（直前dk）
+          if(gi<g2list.length-1){ g2list[gi+1].focus(); }
+          else {
+            const dk=lastG1Dk||Object.keys(g1map['leave'])[0];
+            const next=g1map['leave'][dk];
+            if(next) next.focus();
+          }
+        }
+      } else if(e.key==='ArrowUp'){
+        // 群②内↑：前の要素 or 群①連絡行
+        if(gi>0){ e.preventDefault(); g2list[gi-1].focus(); }
+        else {
+          e.preventDefault();
+          const dk=lastG1Dk||Object.keys(g1map['renraku'])[0];
+          const t=g1map['renraku'][dk];
+          if(t) t.focus();
+        }
+      } else if(e.key==='ArrowDown'){
+        // 群②内↓：次の要素 or 群①下校行
+        if(gi<g2list.length-1){ e.preventDefault(); g2list[gi+1].focus(); }
+        else {
+          e.preventDefault();
+          const dk=lastG1Dk||Object.keys(g1map['leave'])[0];
+          const t=g1map['leave'][dk];
+          if(t) t.focus();
+        }
+      }
     });
   });
 }
@@ -2902,13 +3126,13 @@ function renderJisuu(){
     const showMod=hasActiveMod();
     ts.forEach(t=>{
       const d=actual[t]||{full:0,half:0,mod:0,tot:0};
-      tf+=d.full;th+=d.half;tm+=d.mod;tt+=d.tot;
+      tf+=d.full;th+=d.half;tm+=d.modTime||0;tt+=d.tot;
       const col=SCOLORS[t]||'#444';
       const pl=planForTarget(t);
       const exp=pl.planTotal*(periodWeeks/totalWks);
       const diff=d.tot-exp;
       const dcls=Math.abs(diff)<0.005?'jz':diff>0?'jpos':'jneg';
-      const modCell=showMod?`<td class="${d.mod?'jm':'jz'}">${d.mod||'-'}</td>`:'';
+      const modCell=showMod?`<td class="${(d.modTime||0)?'jm':'jz'}">${fmtN(d.modTime)||'-'}</td>`:'';
       rows+=`<tr>
         <td style="color:${col}">${t}</td>
         <td class="${d.full?'jf':'jz'}">${d.full||'-'}</td>
@@ -2920,7 +3144,7 @@ function renderJisuu(){
       </tr>`;
     });
     const modHd=showMod?`<th style="color:var(--col-mod)">モ</th>`:'';
-    const modFt=showMod?`<td class="jm">${tm||'0'}</td>`:'';
+    const modFt=showMod?`<td class="jm">${fmtNz(tm)}</td>`:'';
     html=`<table class="jt">
       <thead><tr>
         <th>教科</th>
@@ -2932,7 +3156,7 @@ function renderJisuu(){
       <tbody>${rows}</tbody>
       <tfoot><tr>
         <td>合計</td>
-        <td class="jf">${tf||'0'}</td><td class="jh">${th||'0'}</td>
+        <td class="jf">${fmtNz(tf)}</td><td class="jh">${fmtNz(th)}</td>
         ${modFt}<td class="jt2">${fmtNz(tt)}</td>
         <td colspan="2"></td>
       </tr></tfoot>
@@ -3368,23 +3592,23 @@ function renderSummary(){
       let totF=0,totH=0,totM=0,totT=0;
       colKeys.forEach((k,i)=>{
         const d=dataMap[k]?.[t]||{full:0,half:0,mod:0,tot:0};
-        sums[i].f+=d.full;sums[i].h+=d.half;sums[i].m+=d.mod;sums[i].t+=d.tot;
-        totF+=d.full;totH+=d.half;totM+=d.mod;totT+=d.tot;
+        sums[i].f+=d.full;sums[i].h+=d.half;sums[i].m+=d.modTime||0;sums[i].t+=d.tot;
+        totF+=d.full;totH+=d.half;totM+=d.modTime||0;totT+=d.tot;
         if(!d.tot){rows+=`<td colspan="${colN}" style="color:#dde1e8;text-align:center">-</td>`;return;}
-        const modCell=showMod?`<td class="sm">${d.mod||'-'}</td>`:'';
+        const modCell=showMod?`<td class="sm">${fmtN(d.modTime)||'-'}</td>`:'';  // 実時数
         rows+=`<td class="sf">${d.full||'-'}</td><td class="sh">${d.half||'-'}</td>${modCell}<td><b>${fmtN(d.tot)}</b></td>`;
       });
       if(showTotalCol){
         const li=allKeys.length-1;
         sums[li].f+=totF;sums[li].h+=totH;sums[li].m+=totM;sums[li].t+=totT;
-        const modTot=showMod?`<td class="sm" style="background:#f7f9fc">${totM||'-'}</td>`:'';
-        rows+=`<td class="sf" style="background:#f7f9fc">${totF||'-'}</td><td class="sh" style="background:#f7f9fc">${totH||'-'}</td>${modTot}<td style="background:#f7f9fc"><b>${fmtN(totT)||'-'}</b></td>`;
+        const modTot=showMod?`<td class="sm" style="background:#f7f9fc">${fmtN(totM)||'-'}</td>`:'';  // 実時数
+        rows+=`<td class="sf" style="background:#f7f9fc">${fmtNz(totF)}</td><td class="sh" style="background:#f7f9fc">${fmtNz(totH)}</td>${modTot}<td style="background:#f7f9fc"><b>${fmtNz(totT)}</b></td>`;
       }
       rows+='</tr>';
     });
     const ft=allKeys.map((k,i)=>{
-      const modFt=showMod?`<td class="sm">${sums[i].m||'0'}</td>`:'';
-      return `<td class="sf">${sums[i].f||'0'}</td><td class="sh">${sums[i].h||'0'}</td>${modFt}<td><b>${fmtNz(sums[i].t)}</b></td>`;
+      const modFt=showMod?`<td class="sm">${fmtNz(sums[i].m)}</td>`:'';
+      return `<td class="sf">${fmtNz(sums[i].f)}</td><td class="sh">${fmtNz(sums[i].h)}</td>${modFt}<td><b>${fmtNz(sums[i].t)}</b></td>`;
     }).join('');
     return `<table class="stbl"><thead>${hd}</thead><tbody>${rows}</tbody><tfoot><tr><td>合計</td>${ft}</tr></tfoot></table>`;
   }
@@ -3648,7 +3872,7 @@ function buildPrintSummary(){
       const rPlan=calcRate(d.tot,pl.planTotal,period,totalWks);
       const planCls=rateCls(rPlan);
       if(label==='当週実施数'){
-        rows+=`<tr><td>${t}</td><td>${d.full||'-'}</td><td>${d.half||'-'}</td><td>${d.mod||'-'}</td><td>${fmtN(d.tot)||'-'}</td></tr>`;
+        rows+=`<tr><td>${t}</td><td>${d.full||'-'}</td><td>${d.half||'-'}</td><td>${fmtN(d.modTime)||'-'}</td><td>${fmtN(d.tot)||'-'}</td></tr>`;  // モ=実時数
       } else {
         rows+=`<tr><td>${t}</td><td class="${rateCls(calcRate(nonMod,pl.planFull,period,totalWks))}">${fmtRate(calcRate(nonMod,pl.planFull,period,totalWks))}</td><td class="${rateCls(calcRate(modV,pl.planMod,period,totalWks))}">${fmtRate(calcRate(modV,pl.planMod,period,totalWks))}</td><td class="${planCls}">${fmtRate(rPlan)}</td></tr>`;
       }
@@ -3949,7 +4173,7 @@ function exportExcel(){
     const yRate=calcRate(dy.tot,pl.planTotal,yearWks2,totalWks);
     const yStd=calcRate(dy.tot,pl.planStd,yearWks2,totalWks);
     // ★ Excel には実数をそのまま出力（表示書式はExcel側で設定）
-    jAoa.push([t, dw.full, dw.half, dw.mod, dw.tot,
+    jAoa.push([t, dw.full, dw.half, dw.modTime||0, dw.tot,  // モ=実時数
       sRate!==null?sRate:'',
       sStd!==null?sStd:'',
       yRate!==null?yRate:'',
@@ -4571,7 +4795,7 @@ function buildReportAHtml(untilMonth){
   let hdr='<tr>';
   hdr+=`<th>教科</th><th>年間<br>実績</th><th>年間<br>予定</th><th>年間<br>過不足</th>`;
   for(const sem of ['1','2','3']){
-    for(const m of SEMS[sem].months) hdr+=`<th>${m}月</th>`;  // 全月を常に表示
+    for(const m of SEMS[sem].months) hdr+=`<th class="mon-hd">${m}月</th>`;  // 全月を常に表示
     const sl=SEMS[sem].label;
     hdr+=`<th>${sl}<br>実績</th>`;
     if(showMod) hdr+=`<th>うち<br>モ</th>`;
@@ -4641,6 +4865,7 @@ function buildReportAHtml(untilMonth){
         <div class="rpt-sub">${schoolName}　${grade}${cls}　担任：${teacher}</div>
       </div>
       <table class="rpt-tbl" id="rpt-a-tbl">
+        <colgroup id="rpt-a-col"></colgroup>
         <thead>${hdr}</thead>
         <tbody>${tbodyRows}</tbody>
         <tfoot><tr class="ft">${ftRow}</tr></tfoot>
@@ -4747,83 +4972,136 @@ function buildReportBHtml(untilMonth){
 function printReport(untilMonth){
   const aHtml=buildReportAHtml(untilMonth);
   const bHtml=buildReportBHtml(untilMonth);
-  const win=window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
-<title>印刷中...</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;background:#fff}
-/* ページ共通 */
-.rpt-page{
-  width:277mm;height:190mm;
-  overflow:hidden;position:relative;
-  page-break-after:always;
-  display:flex;flex-direction:column;
-}
-.rpt-inner{
-  width:100%;height:100%;
-  display:flex;flex-direction:column;
-  transform-origin:top left;
-}
-/* ヘッダー */
-.rpt-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2mm;flex-shrink:0}
-.rpt-title{font-size:13pt;font-weight:700}
-.rpt-sub{font-size:9.5pt}
-/* テーブル共通 */
-.rpt-tbl{border-collapse:collapse;width:100%;table-layout:fixed}
-.rpt-tbl th,.rpt-tbl td{border:1px solid #999;padding:2px 3px;text-align:right;font-size:9pt;overflow:hidden;white-space:nowrap}
-.rpt-tbl th{background:#dde4f0;text-align:center;font-weight:600}
-.rpt-tbl tfoot .ft td{background:#eef1f8;font-weight:700}
-.tn{text-align:left!important;font-weight:600}
-.mc{font-weight:700;background:#f5f7ff}
-/* A様式 */
-.rpt-a .rpt-inner{justify-content:space-between}
-.rpt-a .rpt-tbl{flex:1}
-/* 検印欄 */
-.stamp-row{display:flex;gap:4mm;justify-content:flex-end;margin-top:2mm;flex-shrink:0}
-.stamp-box{text-align:center}
-.stamp-lbl{font-size:7pt;margin-bottom:1mm}
-.stamp-seal{border:1px solid #999;width:22mm;height:15mm}
-/* B様式 */
-.b-blocks{display:flex;gap:2mm;flex:1;align-items:stretch;overflow:hidden}
-.b-block{width:calc(50% - 1mm);min-width:calc(50% - 1mm);max-width:calc(50% - 1mm);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden}
-.b-tbl{width:100%!important;table-layout:fixed!important;height:100%}
-/* 印刷設定 */
-@media print{
-  @page{size:A4 landscape;margin:10mm}
-  body{margin:0}
-  .rpt-page{width:277mm;height:190mm;page-break-after:always}
-}
-@media screen{
-  body{background:#888;padding:10mm}
-  .rpt-page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);margin-bottom:10mm}
-}
-</style>
-</head><body>
-${aHtml}${bHtml}
-<script>
-// 各ページを A4 横内に収まるよう自動スケール
-function autoScale(){
-  document.querySelectorAll('.rpt-inner').forEach(inner=>{
+  const root=document.getElementById('rpt-print-root');
+  root.innerHTML=aHtml+bHtml;
+  root.style.display='block';
+  document.body.classList.add('rpt-printing'); // 他印刷への影響を防ぐ
+  // 実施報告用の @page landscape を動的注入（他の印刷に影響させない）
+  const rptStyle=document.createElement('style');
+  rptStyle.id='rpt-page-style';
+  rptStyle.textContent='@page{size:A4 landscape;margin:10mm}';
+  document.head.appendChild(rptStyle);
+
+  // autoScale（現在ページ内のrpt-innerに適用）
+  root.querySelectorAll('.rpt-inner').forEach(inner=>{
     const page=inner.closest('.rpt-page');
     if(!page) return;
     inner.style.transform='none';inner.style.width='100%';inner.style.height='100%';
+    if(page.classList.contains('rpt-a')){
+      const cg=inner.querySelector('#rpt-a-col');
+      const tbl=inner.querySelector('#rpt-a-tbl');
+      if(cg&&tbl){
+        cg.innerHTML='';
+        const heads=tbl.querySelectorAll('thead tr:first-child th');
+        const nCols=heads.length;
+        // 列種別ごとの基本幅を計算
+        // 教科列: 4%（2文字固定）, 年間3列: 各4%, 学期集計列: 各5%
+        // 残りを月列（12列）で均等配分
+        const fixedPct_subj=4;
+        const fixedPct_year=4;   // ×3列
+        const fixedPct_sem=5;    // ×(3+mod)×3列
+        // 月列数・学期集計列数をカウント
+        let nMon=0,nSem=0;
+        heads.forEach((th,i)=>{
+          if(i===0||i<=3) return;
+          if(/^\d+月$/.test(th.textContent.trim())) nMon++;
+          else nSem++;
+        });
+        const usedPct=fixedPct_subj+fixedPct_year*3+fixedPct_sem*nSem;
+        const monPct=nMon>0?Math.max(1.5,(100-usedPct)/nMon):2.5;
 
-    // B様式：ブロック幅をページ幅の50%に強制固定してからスケール
+        let monColWidthPx=0; // 月列の実ピクセル幅（フォントサイズ計算用）
+        const pageWidthPx=page.clientWidth||1047;
+
+        heads.forEach((th,i)=>{
+          const col=document.createElement('col');
+          const txt=th.textContent.trim();
+          let pct;
+          if(i===0)       pct=fixedPct_subj;
+          else if(i<=3)   pct=fixedPct_year;
+          else if(/^\d+月$/.test(txt)) pct=monPct;
+          else             pct=fixedPct_sem;
+          col.style.width=pct+'%';
+          cg.appendChild(col);
+          if(/^\d+月$/.test(txt)) monColWidthPx=pageWidthPx*pct/100;
+        });
+
+        // ② 月列のフォントサイズ: 列幅(px)から逆算（係数0.18、最小6pt最大9pt）
+        // 印刷96dpi換算: 1pt≈1.333px → ptをpxに換算して係数調整
+        const monFontPt=Math.min(9,Math.max(6,Math.round(monColWidthPx*0.18)));
+        // 月列セル（ヘッダー・データ・合計）にフォントサイズ適用
+        requestAnimationFrame(()=>{
+          tbl.querySelectorAll('th.mon-hd').forEach(th=>{th.style.fontSize=monFontPt+'pt';});
+          // データ行・合計行の月列セルは colgroup のwidthで自動縮小されるが
+          // セル内の数値フォントも縮小する（教科列以降の月位置のtd）
+          const nFixed=1+3; // 教科+年間3列
+          tbl.querySelectorAll('tbody tr, tfoot tr').forEach(tr=>{
+            const tds=[...tr.querySelectorAll('td')];
+            // 月列位置のtdにフォント適用（nFixed番目からnFixed+nMon-1番目）
+            // 学期ごとに月列が挟まるため、学期ブロック単位で走査
+            let tdIdx=0;
+            heads.forEach((th,hi)=>{
+              if(hi===0){tdIdx++;return;}
+              if(hi<=3){tdIdx++;return;}
+              const txt2=th.textContent.trim();
+              if(/^\d+月$/.test(txt2)){
+                if(tds[tdIdx]) tds[tdIdx].style.fontSize=monFontPt+'pt';
+                tdIdx++;
+              } else {
+                tdIdx++;
+              }
+            });
+          });
+        });
+      }
+    }
     if(page.classList.contains('rpt-b')){
       const blocks=inner.querySelectorAll('.b-block');
-      const bw=Math.floor((page.clientWidth-4)/2); // gap=4px想定
+      const bw=Math.floor((page.clientWidth-4)/2);
       blocks.forEach(b=>{
         b.style.width=bw+'px';b.style.minWidth=bw+'px';b.style.maxWidth=bw+'px';
+        // B様式: 教科列を2文字固定（約10%）、残りを週・集計列で均等配分
+        const btbl=b.querySelector('.b-tbl');
+        if(!btbl) return;
+        const bheads=btbl.querySelectorAll('thead tr th');
+        const bcg=document.createElement('colgroup');
+        const bPct_subj=10; // 教科列
+        const bPct_sem=8;   // 学期実績/予定/過不足
+        let nWks=0,nSemCols=0;
+        bheads.forEach((th,i)=>{
+          if(i===0) return;
+          const t=th.textContent.trim();
+          if(/^(第\d週|月計|うちモ)$/.test(t)) nWks++;
+          else nSemCols++;
+        });
+        const bUsed=bPct_subj+bPct_sem*nSemCols;
+        const bWkPct=nWks>0?Math.max(5,(100-bUsed)/nWks):8;
+        // フォントサイズ計算
+        const wkWidthPx=bw*bWkPct/100;
+        const wkFontPt=Math.min(9,Math.max(6,Math.round(wkWidthPx*0.18)));
+        bheads.forEach((th,i)=>{
+          const col=document.createElement('col');
+          const t=th.textContent.trim();
+          let pct;
+          if(i===0) pct=bPct_subj;
+          else if(/^(第\d週|月計|うちモ)$/.test(t)) pct=bWkPct;
+          else pct=bPct_sem;
+          col.style.width=pct+'%';
+          bcg.appendChild(col);
+        });
+        btbl.prepend(bcg);
+        requestAnimationFrame(()=>{
+          btbl.querySelectorAll('th,td').forEach(cell=>{
+            const t=cell.textContent.trim();
+            if(/^(第\d週|月計|\d+\.\d)$/.test(t)||cell.classList.contains('mc'))
+              cell.style.fontSize=wkFontPt+'pt';
+          });
+        });
       });
     }
-
-    // 高さ方向のオーバーフローのみスケール（横はブロック幅固定で制御済み）
-    const pw=page.clientWidth||1047;
     const ph=page.clientHeight||718;
     const ch=inner.scrollHeight;
-    const scaleY=ph/ch;
-    const scale=Math.min(scaleY,1);
+    const scale=Math.min(ph/ch,1);
     if(scale<0.995){
       inner.style.transform='scale('+scale+')';
       inner.style.transformOrigin='top left';
@@ -4831,21 +5109,20 @@ function autoScale(){
       inner.style.height=(100/scale)+'%';
     }
   });
-}
-window.onload=function(){
-  autoScale();
-  setTimeout(function(){
-    window.print();
-  },400);
-};
-window.addEventListener('afterprint',function(){
-  window.close();
-});
-<\/script>
-</body></html>`);
-  win.document.close();
-}
 
+  // 印刷後にroot を非表示・クリア
+  const cleanup=()=>{
+    root.style.display='none';
+    root.innerHTML='';
+    document.body.classList.remove('rpt-printing'); // 他印刷への影響を解除
+    // 動的注入した @page スタイルを除去（次の印刷に影響させない）
+    const rs=document.getElementById('rpt-page-style');
+    if(rs) rs.remove();
+    window.removeEventListener('afterprint',cleanup);
+  };
+  window.addEventListener('afterprint',cleanup);
+  setTimeout(()=>window.print(),100);
+}
 
 // ─── xlsx出力（A様式 + B様式）───────────────────────────────────
 function exportReportXlsx(untilMonth){
