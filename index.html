@@ -75,8 +75,6 @@ body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
 #btn-open-file:hover{background:#b3cceb!important}
 #btn-save-file{background:#ffd54f!important;color:#324851!important;border-color:#ffb300!important}
 #btn-save-file:hover{background:#ffb300!important}
-#btn-exit{background:#ef9a9a!important;color:#7f0000!important;border-color:#e57373!important}
-#btn-exit:hover{background:#e57373!important}
 /* ── 週ナビボタン色 ── */
 #btn-prev-week,#btn-next-week{background:rgba(255,255,255,.15)!important;color:#fff!important;border-color:rgba(255,255,255,.3)!important}
 #btn-prev-week:hover,#btn-next-week:hover{background:rgba(255,255,255,.3)!important}
@@ -578,12 +576,12 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <span class="sep" style="opacity:.25">|</span>
   <button class="hd-btn" id="btn-open-file">📂 週案データを開く</button>
   <button class="hd-btn accent" id="btn-save-file">💾 週案データを保存</button>
-  <button class="hd-btn" id="btn-exit">✕ 終了</button>
+  <button onclick="openReportModal()" id="btn-report-out" style="padding:5px 10px;background:#2e7d32;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">📋 実施報告出力</button>
   <span class="sep" style="opacity:.25">|</span>
   <div id="week-nav-btns" style="display:none;align-items:center;gap:4px">
-    <button class="hd-btn" id="btn-prev-week">◀ 前週</button>
+    <button class="hd-btn" id="btn-prev-week">◀前</button>
     <button class="hd-btn accent" id="btn-today">今週</button>
-    <button class="hd-btn" id="btn-next-week">翌週 ▶</button>
+    <button class="hd-btn" id="btn-next-week">週▶</button>
   </div>
 
   <span id="hd-saved">保存済み ✓</span>
@@ -622,7 +620,6 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   <div class="stab" data-sem="2" data-view="sem">2学期（9〜12月）</div>
   <div class="stab" data-sem="3" data-view="sem">3学期（1〜3月）</div>
   <div class="stab" data-sem="year" data-view="year">📊 集計</div>
-  <button onclick="openReportModal()" id="btn-report-out" style="display:none;margin-left:4px;padding:5px 12px;background:#2e7d32;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:center">📋 実施報告出力</button>
   <span id="hd-pwa-status"></span>
 </div>
 
@@ -651,9 +648,6 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
       <input type="checkbox" id="chk-hira" style="accent-color:var(--blue);width:12px;height:12px"> ひらがな
     </label>
   </div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0">
-    <button class="pat-btn" id="btn-excel">📊 レポート出力（Excel）</button>
-  </div>
 </div>
 
 <div id="main">
@@ -663,6 +657,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
       <button class="ctab" data-ct="koury">🏫 学級・交流設定</button>
       <button class="ctab" data-ct="subjects">📚 教科・時数設定</button>
       <button class="ctab" data-ct="schedule">📅 行事予定</button>
+      <button class="ctab" data-ct="conf">📅 授業日設定</button>
       <button class="ctab" data-ct="app">📱 アプリ管理</button>
     </div>
     <div id="cfg-body"></div>
@@ -894,6 +889,7 @@ function defVacation(){
 }
 let S={year:curAcYear(),grade:3,classNum:1,gradeSet:false,schoolName:'',cls:'',teacher:'',yearTotalWeeks:35,showSat:true,showSun:false,
        schedule:{},vacation:null,
+       conf:null,
        subjects:defSubjects(),slots:defSlots(),patterns:defPatterns(),koury:defKoury()};
 let db={};
 let fileHandle=null; // File System Access API ハンドル（セッション中のみ保持）
@@ -1102,10 +1098,39 @@ function isVacationWeek(year,month,week){
   });
 }
 
+// dkDate の ISO文字列が非アクティブか（祝日・休業日判定・conf統合版）
+function isDayInactive(iso){
+  if(!iso) return false;
+  // confが読み込まれていればそちらで判定
+  if(confLoaded()) return isInactiveIsoDate(iso);
+  return false;
+}
+
 function validWeeksForMonth(month){
+  // 表示用: 物理的にその月に存在する週のみ（休業除外なし）
   const ws=[];
   for(let w=1;w<=6;w++){
-    if(isValidWeek(S.year,month,w)&&!isVacationWeek(S.year,month,w)) ws.push(w);
+    if(isValidWeek(S.year,month,w)) ws.push(w);
+  }
+  return ws;
+}
+
+// 按分計算専用: 休業週・祝日のみの週を除外した有効週
+function validWeeksForPlan(month){
+  const ws=[];
+  for(let w=1;w<=6;w++){
+    if(!isValidWeek(S.year,month,w)) continue;
+    if(isVacationWeek(S.year,month,w)) continue;
+    // confあり: 月〜金が全て非アクティブな週は除外
+    if(confLoaded()){
+      const monday=calcMonday(S.year,month,w);
+      const allInactive=[0,1,2,3,4].every(d=>{
+        const dt=new Date(monday);dt.setDate(dt.getDate()+d);
+        return isDayInactive(localDateStr(dt));
+      });
+      if(allInactive) continue;
+    }
+    ws.push(w);
   }
   return ws;
 }
@@ -1225,7 +1250,7 @@ function applyJsonData(text,fh){
     // フィールドを先にリセットしてからJSONを適用
     S.grade=3; S.classNum=1; S.gradeSet=false;
     const hadGrade=parsed.cfg.grade!=null;
-    const keys=['year','grade','classNum','gradeSet','schoolName','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','vacation','subjects','slots','patterns','koury'];
+    const keys=['year','grade','classNum','gradeSet','schoolName','cls','teacher','yearTotalWeeks','showSat','showSun','schedule','vacation','conf','subjects','slots','patterns','koury'];
     keys.forEach(k=>{if(parsed.cfg[k]!=null)S[k]=parsed.cfg[k];});
     // vacation 未設定の旧ファイルは null のまま（後方互換）
     if(!hadGrade) S.gradeSet=false; // 旧v4 JSONはgradeなし → 未設定確定
@@ -1472,7 +1497,7 @@ function calcCumSem(){
 // ─── 【3-1/3-2】実施率計算ヘルパー ──────────────────────────────
 // 指定月リストの有効週合計数
 function validWeekCountForMonths(months){
-  return months.reduce((s,m)=>s+validWeeksForMonth(m).length,0);
+  return months.reduce((s,m)=>s+validWeeksForPlan(m).length,0);
 }
 // 実施率(%) = 実績 / (計画 × 経過週 / 総週) × 100 ── 実数のまま返す
 function calcRate(actual,plan,periodWeeks,totalWeeks){
@@ -1826,7 +1851,7 @@ function renderCfgSlots(){
   document.querySelectorAll('.sl-n').forEach(inp=>inp.oninput=()=>{S.slots[+inp.dataset.i].modN=+inp.value||3;save();});
   document.querySelectorAll('.sl-act').forEach(cb=>cb.onchange=()=>{S.slots[+cb.dataset.i].active=cb.checked;save();});
   document.querySelectorAll('.pat-nm').forEach(inp=>inp.oninput=()=>{S.patterns[+inp.dataset.i].name=inp.value;save();});
-  renderVacationSection();
+  // renderVacationSection(); // confタブに移管
 }
 
 // ─── 長期休業設定セクション ───────────────────────────────────────
@@ -2596,11 +2621,287 @@ function renderCfgApp(){
     })();
   };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ─── 授業日設定（confファイル管理）────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+// Excel シリアル値 → ISO日付文字列（YYYY-MM-DD）
+function excelSerialToISO(serial){
+  if(!serial) return null;
+  // SheetJSがDateオブジェクトを返す場合に対応
+  if(serial instanceof Date) return serial.toISOString().slice(0,10);
+  if(isNaN(serial)) return null;
+  // Excel の日付は 1900/1/1 = 1 (閏年バグで 1900/2/29 = 60 が存在)
+  const msPerDay = 86400000;
+  const excelEpoch = new Date(Date.UTC(1899,11,30));
+  const d = new Date(excelEpoch.getTime() + Math.round(serial) * msPerDay);
+  return d.toISOString().slice(0,10);
+}
+
+// ISO日付文字列の翌日
+function isoNextDay(iso){
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate()+1);
+  return d.toISOString().slice(0,10);
+}
+
+// ISO日付文字列の前日
+function isoPrevDay(iso){
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+// confシートを解析してS.confに格納し、S.vacationも自動算出
+function parseConfSheet(wb){
+  // "入力シート" を優先、なければ最初のシート
+  const sheetName = wb.SheetNames.includes('入力シート') ? '入力シート' : wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+  // 学年列インデックス: No.(0) 事由(1) blank/適用(2) 1年(3)〜6年(8)
+  const grade = typeof S.grade === 'number' ? S.grade : 1;
+  const gradeCol = 2 + grade; // grade=1→3, grade=6→8
+
+  // セクション行を探すヘルパー
+  const findSection = (label) => aoa.findIndex(row => row && String(row[0]||'').startsWith(label));
+
+  // ── A. 学期設定（固定8行） ──
+  const aRow = findSection('A.学期設定');
+  if(aRow < 0) { alert('confファイルのフォーマットが認識できません（Aセクション未検出）'); return false; }
+  // データは aRow+2 から（見出し行を1行スキップ）
+  const aData = aoa.slice(aRow+2, aRow+10); // 8行分
+  const getDate = (row) => row ? excelSerialToISO(row[gradeCol]) : null;
+  const sem1Start = getDate(aData[0]) || getDate(aData[1]); // 始業式→なければ入学式（1年生対応）
+  const sem1End   = getDate(aData[2]); // 1学期終業式
+  const sem2Start = getDate(aData[3]); // 2学期始業式
+  const sem2End   = getDate(aData[4]); // 2学期終業式
+  const sem3Start = getDate(aData[5]); // 3学期始業式
+  const sem3End   = getDate(aData[7]) || getDate(aData[6]); // 修了式→なければ卒業式（6年生対応）
+
+  if(!sem1Start||!sem1End||!sem2Start||!sem2End||!sem3Start||!sem3End){
+    alert('学年に対応する学期日程が入力されていません（Aセクション）'); return false;
+  }
+
+  // ── B. 長期休業中の授業日 ──
+  const bRow = findSection('B.長期休業中の授業日設定');
+  const activeDates = new Set();
+  if(bRow >= 0){
+    for(let r = bRow+2; r < bRow+8; r++){
+      const row = aoa[r];
+      if(!row) continue;
+      const iso = excelSerialToISO(row[gradeCol]);
+      if(iso) activeDates.add(iso);
+    }
+  }
+
+  // ── C. 土日授業日・振替休業 ──
+  const cRow = findSection('C.土日授業日設定');
+  const extraActiveDates = new Set(); // 土日授業日
+  const extraHolidays = new Set();    // 振替休業
+  if(cRow >= 0){
+    for(let r = cRow+2; r < cRow+2+20; r++){
+      const row = aoa[r];
+      if(!row) continue;
+      const apply = String(row[2]||'');
+      const iso = excelSerialToISO(row[gradeCol]);
+      if(!iso) continue;
+      if(apply.includes('授業日')) extraActiveDates.add(iso);
+      else if(apply.includes('振替')) extraHolidays.add(iso);
+    }
+  }
+
+  // ── D. 祝日・振替休業 ──
+  const dRow = findSection('D.祝日設定');
+  const holidayDates = new Set();
+  if(dRow >= 0){
+    for(let r = dRow+2; r < dRow+2+50; r++){
+      const row = aoa[r];
+      if(!row) continue;
+      const apply = String(row[2]||'');
+      const iso = excelSerialToISO(row[gradeCol]);
+      if(!iso) continue;
+      if(apply.includes('祝日')||apply.includes('振替')) holidayDates.add(iso);
+    }
+  }
+  // Cの振替休業も祝日扱い
+  extraHolidays.forEach(d => holidayDates.add(d));
+  // Cの土日授業日は activeDates に追加
+  extraActiveDates.forEach(d => activeDates.add(d));
+
+  // ── 休業期間を自動算出 → S.vacation に格納 ──
+  const year = S.year;
+  const vacation = {
+    spring_begin: { start: `${year}-04-01`,     end: isoPrevDay(sem1Start), workdays:[] },
+    summer:       { start: isoNextDay(sem1End),  end: isoPrevDay(sem2Start), workdays:[] },
+    winter:       { start: isoNextDay(sem2End),  end: isoPrevDay(sem3Start), workdays:[] },
+    spring_end:   { start: isoNextDay(sem3End),  end: `${year+1}-03-31`,     workdays:[] },
+  };
+  // Bセクションの登校日を workdays に追加（既存 vacation 互換）
+  activeDates.forEach(d => {
+    for(const vk of Object.keys(vacation)){
+      const v = vacation[vk];
+      if(d >= v.start && d <= v.end) v.workdays.push(d);
+    }
+  });
+
+  // ── S.conf に格納 ──
+  S.conf = {
+    loaded: true,
+    sourceName: sheetName,
+    grade,
+    sem1Start, sem1End, sem2Start, sem2End, sem3Start, sem3End,
+    holidayDates: [...holidayDates],
+    activeDates:  [...activeDates],
+  };
+  S.vacation = vacation;
+  save();
+  return true;
+}
+
+// confが読み込まれているか
+function confLoaded(){ return S.conf && S.conf.loaded; }
+
+// 指定ISO日付が祝日・振替休業かどうか
+function isHolidayFromConf(iso){
+  if(!confLoaded()) return false;
+  return S.conf.holidayDates.includes(iso);
+}
+
+// 指定ISO日付が授業実施日かどうか（土日・長期休業中の登校日）
+function isActiveDateFromConf(iso){
+  if(!confLoaded()) return false;
+  return S.conf.activeDates.includes(iso);
+}
+
+// 指定ISO日付が長期休業期間内かどうか（workdays除く）
+function isVacationDateFromConf(iso){
+  if(!S.vacation) return false;
+  return Object.values(S.vacation).some(v => {
+    if(!v.start||!v.end) return false;
+    return iso >= v.start && iso <= v.end && !(v.workdays||[]).includes(iso);
+  });
+}
+
+// 週案セルの「非アクティブ」判定（日付ベース）
+function isInactiveIsoDate(iso){
+  if(!iso) return false;
+  if(isHolidayFromConf(iso)) return true;
+  if(isVacationDateFromConf(iso) && !isActiveDateFromConf(iso)) return true;
+  return false;
+}
+
+// ── confフォーマットファイル（base64埋め込み）──────────────────────
+const CONF_TEMPLATE_B64 = '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';
+
+function downloadConfTemplate(){
+  const bin = atob(CONF_TEMPLATE_B64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  const blob = new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '授業日・休業日設定ファイル.xlsx';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── renderCfgConf ──────────────────────────────────────────────
+function renderCfgConf(){
+  const body = document.getElementById('cfg-body');
+  const loaded = confLoaded();
+  const conf = S.conf;
+
+  const summaryHtml = loaded ? `
+    <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 14px;font-size:12px;line-height:1.8">
+      <b>読み込み済み</b>（${conf.grade}年用）<br>
+      1学期: ${conf.sem1Start} ～ ${conf.sem1End}<br>
+      2学期: ${conf.sem2Start} ～ ${conf.sem2End}<br>
+      3学期: ${conf.sem3Start} ～ ${conf.sem3End}<br>
+      祝日・振替: ${conf.holidayDates.length}日　土日授業・登校日: ${conf.activeDates.length}日
+    </div>` : `
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:10px 14px;font-size:12px;">
+      授業日設定ファイルが読み込まれていません。<br>
+      読み込むと祝日・休業日が非アクティブになり、実施率計算の精度が向上します。
+    </div>`;
+
+  body.innerHTML = `
+  <div class="cfg-sec">
+    <h3>授業日設定ファイル（conf）の読み込み</h3>
+    <div class="cfg-note">
+      教務主任等が作成した授業日・休業日管理シート（.xlsx）を読み込むと、<br>
+      祝日・振替休業・長期休業期間が週案に反映され、実施率計算の精度が向上します。
+    </div>
+    ${summaryHtml}
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-save" id="btn-conf-load" style="white-space:nowrap;min-width:260px">
+          📂 授業日・休業日設定ファイルを読み込む
+        </button>
+        <span style="font-size:11px;color:#555">
+          教務主任等から配布された設定ファイル（.xlsx）を選択して読み込みます。
+        </span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-save" id="btn-conf-dl" style="white-space:nowrap;min-width:260px;background:#1565c0">
+          📥 空の授業日・休業日設定ファイルをDL
+        </button>
+        <span style="font-size:11px;color:#555">
+          教務主任等が年間行事・祝日を入力するための空フォーマットをDLします。
+        </span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-save" id="btn-conf-clear"
+          style="white-space:nowrap;min-width:260px;background:${loaded?'#c62828':'#bbb'};cursor:${loaded?'pointer':'default'}"
+          ${loaded?'':'disabled'}>
+          🗑 授業日・休日設定をクリア
+        </button>
+        <span style="font-size:11px;color:#555">
+          読み込み済みの授業日設定をリセットします。${loaded?'':' （未読込のため無効）'}
+        </span>
+      </div>
+
+    </div>
+  </div>`;
+
+  document.getElementById('btn-conf-load').onclick = async () => {
+    if(typeof XLSX === 'undefined'){ alert('SheetJSの読み込みに失敗しました。'); return; }
+    try{
+      const [fh] = await window.showOpenFilePicker({
+        types:[{description:'Excelファイル',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
+      });
+      const file = await fh.getFile();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array',cellDates:false});
+      const ok = parseConfSheet(wb);
+      if(ok){ alert('授業日設定ファイルを読み込みました。'); renderCfgConf(); renderTT(); renderJisuu(); }
+    } catch(e){
+      if(e.name !== 'AbortError') alert('読み込みに失敗しました: ' + e.message);
+    }
+  };
+
+  document.getElementById('btn-conf-dl').onclick = () => downloadConfTemplate();
+
+  document.getElementById('btn-conf-clear').onclick = () => {
+    if(!loaded) return;
+    if(!confirm('授業日・休日設定をクリアします。よろしいですか？')) return;
+    S.conf = null;
+    save();
+    renderCfgConf();
+    renderTT(); renderJisuu();
+  };
+}
+
 function renderCfg(){
   document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('on',b.dataset.ct===curCfgTab));
   if(curCfgTab==='slots') renderCfgSlots();
   else if(curCfgTab==='subjects') renderCfgSubjects();
   else if(curCfgTab==='schedule') renderCfgSchedule();
+  else if(curCfgTab==='conf') renderCfgConf();
   else if(curCfgTab==='app') renderCfgApp();
   else renderCfgKoury();
 }
@@ -2722,6 +3023,8 @@ function renderTT(){
       const iso=localDateStr(dt);
       dkDate[dk]=iso;
       dkActive[dk]=(dt.getMonth()+1===curMonth);
+      // confが読み込まれている場合、祝日・休業日は非アクティブに上書き
+      if(dkActive[dk] && isDayInactive(iso)) dkActive[dk]=false;
     } else {
       dkDate[dk]=null;
       dkActive[dk]=true;
@@ -3104,7 +3407,7 @@ function renderJisuu(){
   } else if(jisuuTab==='month'){
     actual=calcCumMonth();
     // 月計：その月の全有効週数を分母にする
-    periodWeeks=validWeeksForMonth(curMonth).length;
+    periodWeeks=validWeeksForPlan(curMonth).length;
   } else if(jisuuTab==='sem'){
     actual=calcCumSem();
     // 学期：その学期の全有効週数を分母にする
@@ -3688,7 +3991,7 @@ function renderSummary(){
     // 学期タブ：月別
     const sd=SEMS[curSumTab];
     const md={};sd.months.forEach(m=>md[m]=calcMonth(m));
-    const mWks=sd.months.map(m=>validWeeksForMonth(m).length);
+    const mWks=sd.months.map(m=>validWeeksForPlan(m).length);
     const mLabels=sd.months.map(m=>m+'月');
     html+=`<div style="font-size:13px;font-weight:700;color:${sd.color};margin-bottom:8px">${sd.label} 月別集計</div>`;
     html+=`<div class="sum-split">
@@ -3755,8 +4058,6 @@ function showView(v){
   document.getElementById('cfg-view').classList.toggle('on',isCfg);
   document.getElementById('mbar').style.display=isSem?'flex':'none';
   document.getElementById('wbar').style.display=isSem?'flex':'none';
-  const rb=document.getElementById('btn-report-out');
-  if(rb) rb.style.display=isYear?'inline-block':'none';
   document.getElementById('tt-wrap').style.display=isSem?'':'none';
   document.getElementById('jisuu').style.display=isSem?'':'none';
   document.getElementById('jisuu-resizer').style.display=isSem?'block':'none';
@@ -3848,11 +4149,11 @@ function buildPrintSummary(){
   // 経過有効週数（学期・年度用）
   const semMonths=SEMS[curSem].months;
   const ci=semMonths.indexOf(curMonth);
-  const semWks=semMonths.slice(0,ci).reduce((s,m)=>s+validWeeksForMonth(m).length,0)
-               +validWeeksForMonth(curMonth).filter(w=>w<=curWeek).length;
+  const semWks=semMonths.slice(0,ci).reduce((s,m)=>s+validWeeksForPlan(m).length,0)
+               +validWeeksForPlan(curMonth).filter(w=>w<=curWeek).length;
   let yearWks=0;let reached=false;
   for(const m of MONTH_ORDER){
-    for(const w of validWeeksForMonth(m)){
+    for(const w of validWeeksForPlan(m)){
       if(m===curMonth&&w===curWeek){yearWks++;reached=true;break;}
       yearWks++;
     }
@@ -3987,243 +4288,6 @@ function printWeek(skipTitle=false){
 
 // ─── 専科：実施記録簿シート生成 ──────────────────────────────────
 const SENKA_TKEYS=['sun','mon','tue','wed','thu','fri','sat'];
-function buildSenkaWeekSheet(month,week){
-  const mondayStr=getEffectiveMonday(month,week);
-  const fullSlots=S.slots.filter(sl=>sl.base==='full').slice(0,6);
-  const dateStrs=SENKA_TKEYS.map(dk=>{
-    if(!mondayStr) return '';
-    const dt=new Date(mondayStr);dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
-    return `${dt.getMonth()+1}/${dt.getDate()}`;
-  });
-  const e9=Array(9).fill('');
-  const kdou=()=>['','\u52E4\u3000\u52D9\n\u5185\u3000\u5BB9',...Array(7).fill('')];
-  const aoa=[];
-  aoa.push([...e9]);
-  aoa.push(['','','実施記録簿','','','','','','']);
-  aoa.push([...e9]);
-  aoa.push([`${month}月第${week}週`,...Array(8).fill('')]);
-  aoa.push([...e9]);
-  aoa.push([...e9]);
-  aoa.push([...e9]);
-  aoa.push(['時程','日',...dateStrs]);
-  aoa.push(['','曜日','日','月','火','水','木','金','土']);
-  aoa.push(kdou());
-  for(let si=0;si<6;si++){
-    const sl=fullSlots[si]||null;
-    const gbRow=[si+1,'学年・組'];
-    const kyRow=['','教科等'];
-    SENKA_TKEYS.forEach(dk=>{
-      if(sl){
-        const c=getCell(month,week,sl.id,dk);
-        if(c.s1){const p=_parseSenkaLabel(c.s1);gbRow.push(p.gakuban);kyRow.push(p.kyoka);}
-        else{gbRow.push('');kyRow.push('');}
-      } else {gbRow.push('');kyRow.push('');}
-    });
-    aoa.push(gbRow);aoa.push(kyRow);aoa.push(kdou());
-  }
-  aoa.push(kdou());
-  aoa.push(['勤務時間数',...Array(8).fill('')]);
-  const ws=XLSX.utils.aoa_to_sheet(aoa);
-  const merges=[
-    {s:{r:1,c:2},e:{r:1,c:7}},{s:{r:3,c:0},e:{r:3,c:1}},
-    {s:{r:5,c:0},e:{r:5,c:1}},{s:{r:7,c:0},e:{r:8,c:0}},
-    {s:{r:29,c:0},e:{r:29,c:1}},
-  ];
-  for(let si=0;si<6;si++){const r=10+si*3;merges.push({s:{r,c:0},e:{r:r+2,c:0}});}
-  ws['!merges']=merges;
-  ws['!cols']=[{wch:6},{wch:9},...Array(7).fill({wch:12})];
-  return ws;
-}
-function buildSenkaMonthSheet(month){
-  const year=month>=4?S.year:S.year+1;
-  const daysInMonth=new Date(year,month,0).getDate();
-  const DAY_JP=['日','月','火','水','木','金','土'];
-  const aoa=[['勤務日\n日　曜','','勤務実績時間\n（研修時間を除く・年休等を含む）','研修\n（時間単位）']];
-  for(let d=1;d<=31;d++){
-    if(d>daysInMonth){aoa.push([d,'','','']);continue;}
-    const dt=new Date(year,month-1,d);
-    const dk=DKEYS[dt.getDay()];
-    const loc=findCellLocationForDate(localDateStr(dt),dk);
-    let jissuu=0,kenshuu=0;
-    if(loc){
-      for(const sl of S.slots){
-        if(sl.base==='none') continue;
-        const c=getCell(month,loc.week,sl.id,dk);
-        if(c.s1){if(c.s1==='研修')kenshuu++;else jissuu++;}
-      }
-    }
-    aoa.push([d,DAY_JP[dt.getDay()],jissuu||'',kenshuu||'']);
-  }
-  const ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
-  ws['!cols']=[{wch:8},{wch:4},{wch:22},{wch:12}];
-  return ws;
-}
-function exportExcel(){
-  if(curView!=='sem'){alert('週案タブを表示した状態でExcel出力してください。');return;}
-  if(typeof XLSX==='undefined'){alert('SheetJSの読み込みに失敗しました。');return;}
-
-  const vsl=visSlots();
-  const vdk=visibleDKeys();
-  const mondayStr=getEffectiveMonday(curMonth,curWeek);
-  const memos=getWeekMemos(curMonth,curWeek);
-  const ts=targets();
-
-  const dkLabel=dk=>{
-    const lbl=DAY_LABELS[dk];
-    if(!mondayStr) return lbl+'曜日';
-    const dt=new Date(mondayStr);dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
-    return `${lbl}曜\n${dt.getMonth()+1}/${dt.getDate()}`;
-  };
-  const dkInactive=dk=>{
-    if(!mondayStr) return false;
-    const dt=new Date(mondayStr);dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
-    return dt.getMonth()+1!==curMonth;
-  };
-
-  // ─── シート1：週案 ───
-  const aoa=[];
-  const nCols=1+vdk.length;
-  // タイトル行（結合用）
-  const dateLabel=mondayStr?(()=>{
-    const dt=new Date(mondayStr),fe=new Date(mondayStr);fe.setDate(fe.getDate()+4);
-    return `${dt.getMonth()+1}/${dt.getDate()}〜${fe.getMonth()+1}/${fe.getDate()}　担任：${S.teacher||''}`;
-  })():'';
-  aoa.push([`${S.year}年度　${S.cls||''}　${curMonth}月 第${curWeek}週　週案`,...Array(nCols-1).fill('')]);
-  aoa.push([dateLabel,...Array(nCols-1).fill('')]);
-  aoa.push(Array(nCols).fill(''));
-  aoa.push(['時間',...vdk.map(dk=>dkLabel(dk))]);
-
-  const order=buildRenderOrder(vsl);
-  for(const item of order){
-    if(item.type==='schedule'){
-      const row=[item.label];
-      for(const dk of vdk){
-        if(dkInactive(dk)){row.push('');continue;}
-        const dt=new Date(mondayStr||new Date());
-        dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
-        const iso=localDateStr(dt);
-        row.push(S.schedule[iso]||'');
-      }
-      aoa.push(row);
-      continue;
-    }
-    if(item.type==='memo'&&item.perDay){
-      const row=[item.label];
-      for(const dk of vdk){
-        row.push(dkInactive(dk)?'':(memos[item.key]?.[dk]||''));
-      }
-      aoa.push(row);
-      continue;
-    }
-    if(item.type==='week'){
-      aoa.push([item.label,memos[item.key]||'',...Array(nCols-2).fill('')]);
-      continue;
-    }
-    if(item.type==='note'){
-      aoa.push([item.label,memos.notes[item.idx]||'',...Array(nCols-2).fill('')]);
-      continue;
-    }
-    const sl=item.sl;
-    const isMod=sl.base==='mod',isFull=sl.base==='full',isNone=sl.base==='none';
-    const slLbl=isFull?sl.label+'時間目':isMod?`${sl.label}(1/${sl.modN}単位)`:sl.label;
-    if(isNone){aoa.push([slLbl,...vdk.map(()=>'')]);continue;}
-    const row=[slLbl];
-    for(const dk of vdk){
-      if(dkInactive(dk)){row.push('');continue;}
-      const c=getCell(curMonth,curWeek,sl.id,dk);
-      let cell='';
-      if(c.s1){
-        cell+=c.s1;
-        if(c.s2) cell+='\n'+c.s2;
-        if(c.m1) cell+='\n'+c.m1;
-        if(c.s2&&c.m2) cell+='\n'+c.m2;
-      }
-      row.push(cell);
-    }
-    aoa.push(row);
-  }
-
-  // ─── シート2：集計 ───
-  const totalWks=S.yearTotalWeeks||35;
-  const wAct=calcWeek(curMonth,curWeek);
-  const semMonths=SEMS[curSem].months;
-  const ci2=semMonths.indexOf(curMonth);
-  const semWks2=semMonths.slice(0,ci2).reduce((s,m)=>s+validWeeksForMonth(m).length,0)
-               +validWeeksForMonth(curMonth).filter(w=>w<=curWeek).length;
-  let yearWks2=0;let reached2=false;
-  for(const m of MONTH_ORDER){
-    for(const w of validWeeksForMonth(m)){
-      if(m===curMonth&&w===curWeek){yearWks2++;reached2=true;break;}
-      yearWks2++;
-    }
-    if(reached2) break;
-  }
-  const sAct2=calcCumSem(),yAct2=calcCumulative();
-  const jAoa=[
-    ['教科','フル','½','モ','計','学期計画率%','学期標準率%','年度計画率%','年度標準率%']
-  ];
-  ts.forEach(t=>{
-    const dw=wAct[t]||{full:0,half:0,mod:0,tot:0};
-    const ds=sAct2[t]||{full:0,half:0,mod:0,tot:0};
-    const dy=yAct2[t]||{full:0,half:0,mod:0,tot:0};
-    const pl=planForTarget(t);
-    const sRate=calcRate(ds.tot,pl.planTotal,semWks2,totalWks);
-    const sStd=calcRate(ds.tot,pl.planStd,semWks2,totalWks);
-    const yRate=calcRate(dy.tot,pl.planTotal,yearWks2,totalWks);
-    const yStd=calcRate(dy.tot,pl.planStd,yearWks2,totalWks);
-    // ★ Excel には実数をそのまま出力（表示書式はExcel側で設定）
-    jAoa.push([t, dw.full, dw.half, dw.modTime||0, dw.tot,  // モ=実時数
-      sRate!==null?sRate:'',
-      sStd!==null?sStd:'',
-      yRate!==null?yRate:'',
-      yStd!==null?yStd:'']);
-  });
-
-  // ─── ワークブック組み立て ───
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet(aoa);
-  const js=XLSX.utils.aoa_to_sheet(jAoa);
-
-  // A4縦想定：有効幅約190mm。列幅を mm 換算（1文字≈2.5mm）で配分
-  // ラベル列14mm≒5.6文字、曜日列は均等分割
-  const dayColW=Math.floor((190-14)/vdk.length); // mm
-  const dayWch=Math.round(dayColW/2.5); // Excel文字幅単位
-  ws['!cols']=[{wch:6},...vdk.map(()=>({wch:Math.max(dayWch,10)}))];
-  // 行高：ヘッダー行は高め、データ行は標準
-  ws['!rows']=[{hpx:20},{hpx:15},{hpx:4},{hpx:22}];
-  // タイトル2行はセル結合
-  ws['!merges']=[
-    {s:{r:0,c:0},e:{r:0,c:nCols-1}},
-    {s:{r:1,c:0},e:{r:1,c:nCols-1}},
-  ];
-  // 週メモ行（notes）のみセル結合。日別メモ行は結合不要
-  let rowIdx=4;
-  for(const item of order){
-    if(item.type==='note'||item.type==='week'){
-      ws['!merges'].push({s:{r:rowIdx,c:1},e:{r:rowIdx,c:nCols-1}});
-    }
-    rowIdx++;
-  }
-  // 集計シート列幅
-  js['!cols']=[{wch:12},{wch:5},{wch:5},{wch:5},{wch:5},{wch:9},{wch:9},{wch:9},{wch:9}];
-
-  XLSX.utils.book_append_sheet(wb,ws,'週案');
-  XLSX.utils.book_append_sheet(wb,js,'集計');
-
-  // 専科モード：実施記録簿シートを追加
-  if(S.koury.mode==='senka'){
-    validWeeksForMonth(curMonth).forEach(w=>{
-      const sheetName=`${curMonth}月第${w}週`;
-      XLSX.utils.book_append_sheet(wb,buildSenkaWeekSheet(curMonth,w),sheetName);
-    });
-    XLSX.utils.book_append_sheet(wb,buildSenkaMonthSheet(curMonth),`実施記録（${curMonth}月）`);
-  }
-
-  const fname=`${S.year}年度_${S.cls||'クラス未設定'}_${curMonth}月第${curWeek}週_週案.xlsx`;
-  XLSX.writeFile(wb,fname);
-}
-
 // ─── 配布用印刷（バッジ・集計表なし）────────────────────────────
 function printForStudents(){
   if(curView!=='sem'){alert('週案タブを表示した状態で印刷してください。');return;}
@@ -4585,7 +4649,7 @@ function semValidWeeksForPlan(sem){
 
 // 月の有効週数（選択期間内に限定。limitWeek省略=全週）
 function monthValidWeeks(m, limitWeek=999){
-  return validWeeksForMonth(m).filter(w=>w<=limitWeek).length;
+  return validWeeksForPlan(m).filter(w=>w<=limitWeek).length;
 }
 
 // 学期の吸収月（有効週ゼロなら順延）
@@ -4596,7 +4660,7 @@ const SEM_ABSORB_MONTHS={
 };
 function absorbMonthForSem(sem){
   for(const m of SEM_ABSORB_MONTHS[sem]){
-    if(validWeeksForMonth(m).length>0) return m;
+    if(validWeeksForPlan(m).length>0) return m;
   }
   return SEMS[sem].months[0]; // フォールバック
 }
@@ -4631,7 +4695,7 @@ function planByMonth(t){
     const tmp={};
     for(const m of planMons){
       if(m===absorb){tmp[m]=null;continue;}
-      const mw=validWeeksForMonth(m).length;
+      const mw=validWeeksForPlan(m).length;
       const raw=semWks>0?semTotal*mw/semWks:0;
       tmp[m]=Math.round(raw);
       assigned+=tmp[m];
@@ -4653,7 +4717,7 @@ function planByWeek(t){
   const result={};
   for(const m of MONTH_ORDER){
     const mTotal=byMonth[m]||0;
-    const weeks=validWeeksForMonth(m);
+    const weeks=validWeeksForPlan(m);
     if(!weeks.length){result[m]={};continue;}
     const tmp={};
     let assigned=0;
@@ -4695,7 +4759,7 @@ function planModByMonth(t){
     let assigned=0;const tmp={};
     for(const m of planMons){
       if(m===absorb){tmp[m]=null;continue;}
-      const mw=validWeeksForMonth(m).length;
+      const mw=validWeeksForPlan(m).length;
       tmp[m]=semWks>0?Math.round(semTotal*mw/semWks):0;
       assigned+=tmp[m];
     }
@@ -5288,25 +5352,12 @@ function init(){
   document.getElementById('btn-open-file').onclick=()=>loadFromFile();
   document.getElementById('btn-print').onclick=()=>printWeek();
   document.getElementById('btn-print-student').onclick=()=>printForStudents();
-  document.getElementById('btn-excel').onclick=()=>exportExcel();
   document.getElementById('btn-prev-week').onclick=()=>prevWeekNav();
   document.getElementById('btn-today').onclick=()=>gotoToday();
   document.getElementById('btn-next-week').onclick=()=>nextWeekNav();
   initResizer();
   document.getElementById('mb-reload').onclick=()=>{hideMismatchBanner();loadFromFile();};
   document.getElementById('mb-continue').onclick=()=>dimMismatchBanner();
-  // 終了ボタン
-  document.getElementById('btn-exit').onclick=async()=>{
-    if(!appStarted) return;
-    if(hasUnsavedChanges){
-      if(confirm('保存されていない変更があります。保存してから終了しますか？')){
-        await saveToFile();
-        if(!hasUnsavedChanges) alert('保存が完了しました。タブを閉じてください。');
-      }
-    } else {
-      alert('保存済みです。タブを閉じてください。');
-    }
-  };
   // セムバー
   document.querySelectorAll('.stab').forEach(t=>{
     t.onclick=()=>{
