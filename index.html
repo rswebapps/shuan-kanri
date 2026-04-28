@@ -2403,8 +2403,9 @@ function renderScheduleTable(){  const tbody=document.getElementById('schedule-b
       lines.forEach((line,i)=>{
         const target=allInputs[idx+i];
         if(!target) return;
-        target.value=line;
-        S.schedule[target.dataset.iso]=line;
+        const iso=target.dataset.iso;
+        appendSchedule(iso,line);   // ICSと同じ追記・重複スキップロジックを使用
+        target.value=S.schedule[iso]||line;
       });
       save();
       renderTT();
