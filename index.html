@@ -827,6 +827,18 @@ function applyPlanStdDefaults(){
   });
 }
 
+// 特別支援学級モード判定（知的・自情・特を含む）
+function isTokushiMode(mode){ return ['tokushi','chiteki','jijo','toku'].includes(mode||S.koury.mode); }
+// classType を返す（tokushi系は全て 'tokushi' 扱い）
+function getClassType(mode){ return (mode||S.koury.mode)==='normal'?'normal':'tokushi'; }
+// モードの表示ラベル
+function getModeLabel(mode){
+  const m=mode||S.koury.mode;
+  return m==='normal'?'通常学級':m==='senka'?'専科':
+         m==='chiteki'?'特別支援学級（知的）':m==='jijo'?'特別支援学級（自情）':
+         m==='toku'?'特別支援学級（特）':'特別支援学級';
+}
+
 function defSubjectsForGrade(grade, classType){
   return SUBJECT_MASTER
     .filter(s=>isSubjectActive(s,grade,classType))
@@ -1333,7 +1345,7 @@ function updateBannerMargin(){
 // 必須項目の未入力チェック（学年・表示名・担任名）
 function getMissingRequired(){
   const missing=[];
-  if(!S.gradeSet&&S.koury.mode!=='senka') missing.push('学年');
+  if(!S.gradeSet&&S.koury.mode!=='senka'&&!isTokushiMode()) missing.push('学年');
   if(!S.cls.trim()) missing.push('表示名（クラス名）');
   if(!S.teacher.trim()) missing.push('担任名');
   return missing;
@@ -1558,7 +1570,7 @@ function renderCfgSubjects(){
 function renderSubjTable(){
   const tb=document.getElementById('stbody');if(!tb)return;
   const hasMod=hasActiveMod();
-  const classType=S.koury.mode==='normal'?'normal':'tokushi';
+  const classType=getClassType();
   const allTargets=[...new Set(S.subjects.map(s=>s.target))];
   let rows='';
   S.subjects.forEach((s,i)=>{
@@ -2023,14 +2035,16 @@ function renderCfgKoury(){
   });
 
   const modeLocked=S.gradeSet;
-  const modeLabel=isNormal?'通常学級':isSenka?'専科':'特別支援学級';
+  const modeLabel=getModeLabel(mode);
   const modeSec=modeLocked
     ?`<div class="setup-locked-val">🏫 ${modeLabel}</div>
        <div class="setup-lock-note">学級タイプと学年は初期設定で確定済みです。変更する場合は新規作成からやり直してください。</div>`
     :`<div class="koury-mode">
         <label><input type="radio" name="kmode" value="normal" ${isNormal?'checked':''}> 通常学級</label>
-        <label><input type="radio" name="kmode" value="tokushi" ${mode==='tokushi'?'checked':''}> 特別支援学級</label>
         <label><input type="radio" name="kmode" value="senka" ${isSenka?'checked':''}> 専科</label>
+        <label><input type="radio" name="kmode" value="chiteki" ${mode==='chiteki'?'checked':''}> 知的</label>
+        <label><input type="radio" name="kmode" value="jijo" ${mode==='jijo'?'checked':''}> 自情</label>
+        <label><input type="radio" name="kmode" value="toku" ${mode==='toku'?'checked':''}> 特</label>
       </div>`;
   const gradeSec=modeLocked
     ?(!isSenka?`<div class="setup-locked-val">${S.grade}年 ${S.classNum}組</div>`:'')
@@ -2057,7 +2071,7 @@ function renderCfgKoury(){
       ?'専科：担当する通常学級に特別支援学級から交流に来る児童を教科ごとに設定できます。児童ごとに交流元の学年・クラスを設定してください。'
       :isNormal
         ?'通常学級：支援級の児童がこのクラスに交流に来る教科のコマにバッジが表示されます。'
-        :'特別支援学級：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。'
+        :getModeLabel()+"：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。"
     }「転出」をチェックすると過去の週案履歴のバッジはそのまま残りますが、新規コマへの自動表示・入力UIへの表示は停止します。</div>
     <table class="cfg-tbl">
       <thead><tr><th>ID</th><th>色</th><th>有効</th><th>交流先学年・組</th><th>交流教科</th><th>転出</th></tr></thead>
@@ -2074,7 +2088,7 @@ function renderCfgKoury(){
       el.textContent=
         m==='normal'?'通常学級：支援級の児童がこのクラスに交流に来る教科のコマにバッジが表示されます。':
         m==='senka' ?'専科：担当する通常学級に特別支援学級から交流に来る児童を設定します。学年・クラスは使用しません。':
-                     '特別支援学級：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。';
+                     getModeLabel()+'：児童が通常学級に交流に行く教科以外（在籍中）のコマにバッジが表示されます。';
     };
     updateNote();
     document.querySelectorAll('[name=kmode]').forEach(r=>r.onchange=()=>{
@@ -2083,7 +2097,7 @@ function renderCfgKoury(){
       if(newMode===oldMode) return;
       const hasData=Object.keys(db).some(y=>Object.keys(db[y]||{}).length>0);
       if(hasData){
-        if(!confirm(`学級タイプを「${newMode==='normal'?'通常学級':newMode==='senka'?'専科':'特別支援学級'}」に変更します。\n\n⚠️ 変更前にファイル保存を推奨します。\n教科設定がリセットされる可能性があります。\n\nよろしいですか？`)){
+        if(!confirm(`学級タイプを「${newMode==='normal'?'通常学級':getModeLabel(newMode)}」に変更します。\n\n⚠️ 変更前にファイル保存を推奨します。\n教科設定がリセットされる可能性があります。\n\nよろしいですか？`)){
           r.checked=false;
           document.querySelector(`[name=kmode][value="${oldMode}"]`).checked=true;
           return;
@@ -2096,7 +2110,7 @@ function renderCfgKoury(){
       S.classNum=null;
       S.subjects=[];
     } else if(newMode!==oldMode){
-      const classType=newMode==='normal'?'normal':'tokushi';
+      const classType=getClassType(newMode);
       if(S.gradeSet&&typeof S.grade==='number'){
         S.subjects=defSubjectsForGrade(S.grade,classType);
         applyPlanStdDefaults();
@@ -2122,7 +2136,7 @@ function renderCfgKoury(){
       }
       S.grade=newGrade;S.gradeSet=true;
       const reset=wasNotSet||confirm(`教科構成を${newGrade}年向けにリセットしますか？\n（「キャンセル」を選ぶと教科は現状維持）`);
-      if(reset){ S.subjects=defSubjectsForGrade(S.grade,S.koury.mode==='normal'?'normal':'tokushi'); applyPlanStdDefaults(); }
+      if(reset){ S.subjects=defSubjectsForGrade(S.grade,getClassType(S.koury.mode)); applyPlanStdDefaults(); }
       if(isNormal) S.koury.children.forEach(ch=>{ch.grade=null;});
       checkSubjectMismatch();renderCfgKoury();
       await saveAndReload();
@@ -3086,15 +3100,12 @@ function renderTT(){
         const active=dkActive[dk];
         const iso=dkDate[dk];
         const val=iso?(S.schedule[iso]||''):'';
-        if(!active){
-          rows+=`<td class="memo-cell ${item.cellCls}" style="background:#ebebeb;opacity:.5"></td>`;
-        } else {
-          rows+=`<td class="memo-cell ${item.cellCls}" data-dk="${dk}">
+        // 非アクティブ日も行事・メモ入力は可能（授業コマのみ不可）
+        rows+=`<td class="memo-cell ${item.cellCls}" data-dk="${dk}" style="${active?'':'background:#f0f0f0'}">
             <textarea class="schedule-ta" data-isodate="${iso}" data-dk="${dk}"
-              placeholder="全角スペースで改行"
-              style="width:100%;border:none;background:transparent;font-family:inherit;font-size:11px;resize:none;padding:1px 3px;outline:none;color:var(--text);min-height:20px;overflow:hidden"
+              placeholder="${active?'全角スペースで改行':''}"
+              style="width:100%;border:none;background:transparent;font-family:inherit;font-size:11px;resize:none;padding:1px 3px;outline:none;color:${active?'var(--text)':'#999'};min-height:20px;overflow:hidden"
             >${escHtml(val)}</textarea></td>`;
-        }
       }
       rows+='</tr>';
       continue;
@@ -3273,7 +3284,7 @@ function addMemoNavigation(){
       ta.addEventListener('focus',()=>{ lastG1Dk=dk; });
       ta.addEventListener('keydown',e=>{
         const shift=e.shiftKey;
-        if(e.key==='Tab'||e.key==='Enter'){
+        if(e.key==='Tab'){
           e.preventDefault();
           if(shift){
             // 上へ：同dk・前のキー
@@ -3330,7 +3341,7 @@ function addMemoNavigation(){
   g2list.forEach((ta,gi)=>{
     ta.addEventListener('keydown',e=>{
       const shift=e.shiftKey;
-      if(e.key==='Tab'||e.key==='Enter'){
+      if(e.key==='Tab'){
         e.preventDefault();
         if(shift){
           // 上へ：前の群②要素 or 群①連絡行（直前dk）
@@ -3620,7 +3631,7 @@ function renderMBody(){
   // isFull は mstate に頼らず S.slots から直接取得（再レンダリング時の安全策）
   const slDef=S.slots.find(s=>s.id===slotId);
   const isFull=slDef?.base==='full';
-  const classType=S.koury.mode==='normal'?'normal':'tokushi';
+  const classType=getClassType();
   // 学年・学級タイプに合わない教科はチップ非表示
   const slist=S.subjects
     .filter(s=>{const m=SUBJECT_MASTER.find(x=>x.label===s.label);return !m||isSubjectActive(m,S.grade,classType);})
@@ -4408,7 +4419,7 @@ function renderSetupBody(){
   const mode=S.koury.mode||'normal';
   const locked=S.gradeSet;
   const isSenka=mode==='senka';
-  const modeLabel=mode==='normal'?'通常学級':mode==='senka'?'専科':'特別支援学級';
+  const modeLabel=getModeLabel(mode);
 
   // モード選択部分
   const modeHtml=locked
@@ -4416,13 +4427,17 @@ function renderSetupBody(){
        <div class="setup-lock-note">学級タイプと学年はデータ読み込み時に設定済みです。<br>変更する場合は「週案を新規作成する」からやり直してください。</div>`
     :`<div class="setup-mode-btns">
         <button class="setup-mode-btn${mode==='normal'?' on':''}" data-mode="normal">通常学級</button>
-        <button class="setup-mode-btn${mode==='tokushi'?' on':''}" data-mode="tokushi">特別支援学級</button>
         <button class="setup-mode-btn${mode==='senka'?' on':''}" data-mode="senka">専科</button>
+        <button class="setup-mode-btn${mode==='chiteki'?' on':''}" data-mode="chiteki">知的</button>
+        <button class="setup-mode-btn${mode==='jijo'?' on':''}" data-mode="jijo">自情</button>
+        <button class="setup-mode-btn${mode==='toku'?' on':''}" data-mode="toku">特</button>
       </div>`;
 
   // 学年・クラス部分
+  const isTokushi=isTokushiMode(mode);
   let gradeHtml='';
-  if(!locked&&!isSenka){
+  if(!locked&&!isSenka&&!isTokushi){
+    // 通常学級のみ学年セレクト（1〜6のみ）
     const classOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===S.classNum?'selected':''}>${n}組</option>`).join('');
     gradeHtml=`<div class="setup-sec">
       <label class="setup-lbl">学年・クラス <small>※設定後は変更できません</small></label>
@@ -4434,10 +4449,25 @@ function renderSetupBody(){
         <select id="setup-classnum" class="setup-sel">${classOpts}</select>
       </div>
     </div>`;
+  } else if(!locked&&!isSenka&&isTokushi){
+    // 知的・自情・特：学年は自動設定（クラス番号のみ選択）
+    const classOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===S.classNum?'selected':''}>${n}組</option>`).join('');
+    gradeHtml=`<div class="setup-sec">
+      <label class="setup-lbl">クラス番号 <small>※設定後は変更できません</small></label>
+      <div class="setup-grade-row">
+        <div style="padding:4px 8px;background:#f0f4f8;border-radius:4px;font-size:13px;color:#555">${getModeLabel(mode)}</div>
+        <select id="setup-classnum" class="setup-sel">${classOpts}</select>
+      </div>
+    </div>`;
   } else if(locked&&!isSenka&&typeof S.grade==='number'){
     gradeHtml=`<div class="setup-sec">
       <label class="setup-lbl">学年・クラス</label>
       <div class="setup-locked-val">${S.grade}年 ${S.classNum}組</div>
+    </div>`;
+  } else if(locked&&!isSenka&&isTokushiMode()){
+    gradeHtml=`<div class="setup-sec">
+      <label class="setup-lbl">学級</label>
+      <div class="setup-locked-val">${getModeLabel()} ${S.classNum}組</div>
     </div>`;
   }
 
@@ -4468,14 +4498,21 @@ function renderSetupBody(){
     document.querySelectorAll('.setup-mode-btn').forEach(btn=>{
       btn.onclick=()=>{
         const prevMode=S.koury.mode;
-        S.koury.mode=btn.dataset.mode;
+        const newMode=btn.dataset.mode;
+        S.koury.mode=newMode;
         // 専科選択時：表示名を自動入力（未入力または自動入力値のみ上書き）
-        if(btn.dataset.mode==='senka'){
+        if(newMode==='senka'){
           if(!S.cls||S.cls==='専科'||/^専科\d+$/.test(S.cls)) S.cls='専科';
         }
         // 専科から他モードへ切替時：自動入力した専科名をクリア
-        if(prevMode==='senka'&&btn.dataset.mode!=='senka'){
+        if(prevMode==='senka'&&newMode!=='senka'){
           if(S.cls==='専科'||/^専科\d+$/.test(S.cls)) S.cls='';
+        }
+        // 知的・自情・特選択時：S.gradeをモード値に自動設定
+        if(isTokushiMode(newMode)){
+          S.grade=newMode; S.gradeSet=false; // gradeは文字列だが計算には使われない
+        } else if(isTokushiMode(prevMode)&&newMode!=='senka'){
+          S.grade=3; // 通常学級に戻った場合はデフォルト学年にリセット
         }
         renderSetupBody();
         checkSetupOk();
@@ -4529,9 +4566,14 @@ function showSetupModal(){
     const classnumEl=document.getElementById('setup-classnum');
     if(S.koury.mode==='senka'){
       S.grade='senka';S.gradeSet=true;S.classNum=null;S.subjects=[];
+    } else if(isTokushiMode()){
+      // 知的・自情・特: gradeはモード値、教科は tokushi 用を設定
+      S.grade=S.koury.mode;S.gradeSet=true;
+      S.subjects=defSubjectsForGrade(1,'tokushi'); // grade=1で tokushi 用教科
+      applyPlanStdDefaults();
     } else if(gradeEl&&+gradeEl.value>0){
       S.grade=+gradeEl.value;S.gradeSet=true;
-      const classType=S.koury.mode==='normal'?'normal':'tokushi';
+      const classType=getClassType();
       S.subjects=defSubjectsForGrade(S.grade,classType);
       applyPlanStdDefaults();
     }
