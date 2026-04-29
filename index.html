@@ -357,11 +357,14 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   table#tt{width:100%!important;font-size:8px;table-layout:fixed}
   #tt th{background:#444!important;color:#fff!important;padding:2px 3px!important;
     font-size:8px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .th-sl{width:42px!important}
+  .th-sl{width:56px!important}
+  /* ひらがなモード印刷時は見出し列を広げる */
+  body.hira-print .th-sl{width:72px!important}
+  body.hira-print td.sltd{width:72px!important}
   .th-sat{background:#324851!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .th-sun{background:#b71c1c!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sltd{background:#f0f4f9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;
-    font-size:7px!important;padding:1px 2px!important;width:42px!important}
+    font-size:7px!important;padding:1px 2px!important;width:56px!important}
   td.sltd.asa{background:#e8f5e9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sltd.gyo{background:#fff8e1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sltd.hiru{background:#fce4ec!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -376,7 +379,7 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
   .cmemo{font-size:14px!important;color:#333!important}
   .tbadge{font-size:6px!important;padding:0 2px!important;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  td.memo-hd{font-size:14px!important;padding:1px 2px!important;color:#333!important}
+  td.memo-hd{font-size:11px!important;padding:1px 2px!important;color:#333!important}
   td.memo-cell{padding:1px 2px!important}
   td.memo-cell textarea{font-size:14px!important;color:#333!important;border:none!important;
     background:transparent!important;resize:none!important;height:auto!important;
@@ -4295,6 +4298,7 @@ function printForStudents(){
   document.body.classList.add('print-student');
 
   const hiraOn=document.getElementById('chk-hira')?.checked;
+  if(hiraOn) document.body.classList.add('hira-print');
   const hiraMap=[]; // {target, orig} — target は Element か TextNode
 
   if(hiraOn){
@@ -4352,6 +4356,7 @@ function printForStudents(){
       else el.textContent=orig;
     });
     document.body.classList.remove('print-student');
+    document.body.classList.remove('hira-print');
   },800);
 }
 
@@ -4532,8 +4537,10 @@ function showSetupModal(){
     }
     if(classnumEl&&+classnumEl.value>0) S.classNum=+classnumEl.value;
     // ヘッダー更新
+    document.getElementById('inp-school').value=S.schoolName||'';
     document.getElementById('inp-class').value=S.cls;
     document.getElementById('inp-teacher').value=S.teacher;
+    updateSchoolNameWarn();
     // 保存処理
     await _setupSaveAndEnter();
   };
