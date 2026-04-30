@@ -828,15 +828,17 @@ function applyPlanStdDefaults(){
 }
 
 // 特別支援学級モード判定（知的・自情・特を含む）
-function isTokushiMode(mode){ return ['tokushi','chiteki','jijo','toku'].includes(mode||S.koury.mode); }
+function isTokushiMode(mode){ return ['tokushi','chiteki','jijo','toku','sp_chiteki','sp_jijo','sp_shitai','sp_jakushi','sp_nancho','sp_gengo','sp_byojaku'].includes(mode||S.koury.mode); }
 // classType を返す（tokushi系は全て 'tokushi' 扱い）
 function getClassType(mode){ return (mode||S.koury.mode)==='normal'?'normal':'tokushi'; }
 // モードの表示ラベル
 function getModeLabel(mode){
   const m=mode||S.koury.mode;
+  const sp={'sp_chiteki':'知的','sp_jijo':'自情','sp_shitai':'肢体',
+            'sp_jakushi':'弱視','sp_nancho':'難聴','sp_gengo':'言語','sp_byojaku':'病弱',
+            'chiteki':'知的','jijo':'自情','toku':'特'};
   return m==='normal'?'通常学級':m==='senka'?'専科':
-         m==='chiteki'?'特別支援学級（知的）':m==='jijo'?'特別支援学級（自情）':
-         m==='toku'?'特別支援学級（特）':'特別支援学級';
+         sp[m]?`特別支援学級（${sp[m]}）`:'特別支援学級';
 }
 
 function defSubjectsForGrade(grade, classType){
@@ -937,6 +939,18 @@ function migrateSubjectTargets(){
     }
   });
   return changed; // 変換があった場合はリストを返す、なければ[]
+}
+
+// 学級モードのマイグレーション（旧値→新値）
+function migrateLegacyMode(){
+  const MODE_MAP={'chiteki':'sp_chiteki','jijo':'sp_jijo','toku':'sp_shitai'};
+  const old=S.koury.mode;
+  if(MODE_MAP[old]){
+    S.koury.mode=MODE_MAP[old];
+    S.grade=S.koury.mode;
+    return true;
+  }
+  return false;
 }
 function _showMigrationNotice(changed){
   const existing=document.getElementById('migration-notice');
@@ -1271,7 +1285,8 @@ function applyJsonData(text,fh){
     if(!hadGrade) S.gradeSet=false; // 旧v4 JSONはgradeなし → 未設定確定
     S.subjects.forEach(s=>{if(s.planStd==null)s.planStd=0;});
     migrateSlotLabels();
-    const migratedTargets=migrateSubjectTargets();
+    migrateLegacyMode();
+  const migratedTargets=migrateSubjectTargets();
     if(migratedTargets&&migratedTargets.length>0) _showMigrationNotice(migratedTargets);
     if(S.grade==null) S.grade=3;
     if(S.classNum==null) S.classNum=1;
@@ -2042,9 +2057,13 @@ function renderCfgKoury(){
     :`<div class="koury-mode">
         <label><input type="radio" name="kmode" value="normal" ${isNormal?'checked':''}> 通常学級</label>
         <label><input type="radio" name="kmode" value="senka" ${isSenka?'checked':''}> 専科</label>
-        <label><input type="radio" name="kmode" value="chiteki" ${mode==='chiteki'?'checked':''}> 知的</label>
-        <label><input type="radio" name="kmode" value="jijo" ${mode==='jijo'?'checked':''}> 自情</label>
-        <label><input type="radio" name="kmode" value="toku" ${mode==='toku'?'checked':''}> 特</label>
+        <label><input type="radio" name="kmode" value="sp_chiteki" ${mode==='sp_chiteki'?'checked':''}> 知的</label>
+        <label><input type="radio" name="kmode" value="sp_jijo" ${mode==='sp_jijo'?'checked':''}> 自情</label>
+        <label><input type="radio" name="kmode" value="sp_shitai" ${mode==='sp_shitai'?'checked':''}> 肢体</label>
+        <label><input type="radio" name="kmode" value="sp_jakushi" ${mode==='sp_jakushi'?'checked':''}> 弱視</label>
+        <label><input type="radio" name="kmode" value="sp_nancho" ${mode==='sp_nancho'?'checked':''}> 難聴</label>
+        <label><input type="radio" name="kmode" value="sp_gengo" ${mode==='sp_gengo'?'checked':''}> 言語</label>
+        <label><input type="radio" name="kmode" value="sp_byojaku" ${mode==='sp_byojaku'?'checked':''}> 病弱</label>
       </div>`;
   const gradeSec=modeLocked
     ?(!isSenka?`<div class="setup-locked-val">${S.grade}年 ${S.classNum}組</div>`:'')
@@ -4428,9 +4447,7 @@ function renderSetupBody(){
     :`<div class="setup-mode-btns">
         <button class="setup-mode-btn${mode==='normal'?' on':''}" data-mode="normal">通常学級</button>
         <button class="setup-mode-btn${mode==='senka'?' on':''}" data-mode="senka">専科</button>
-        <button class="setup-mode-btn${mode==='chiteki'?' on':''}" data-mode="chiteki">知的</button>
-        <button class="setup-mode-btn${mode==='jijo'?' on':''}" data-mode="jijo">自情</button>
-        <button class="setup-mode-btn${mode==='toku'?' on':''}" data-mode="toku">特</button>
+        <button class="setup-mode-btn${isTokushiMode(mode)?' on':''}" data-mode="sp_chiteki" id="btn-mode-sp">特支</button>
       </div>`;
 
   // 学年・クラス部分
@@ -4450,12 +4467,22 @@ function renderSetupBody(){
       </div>
     </div>`;
   } else if(!locked&&!isSenka&&isTokushi){
-    // 知的・自情・特：学年は自動設定（クラス番号のみ選択）
+    // 特支：学級種別サブ選択 + クラス番号
     const classOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===S.classNum?'selected':''}>${n}組</option>`).join('');
+    const spTypes=[
+      {v:'sp_chiteki',l:'知的障害'},
+      {v:'sp_jijo',   l:'自閉症・情緒障害'},
+      {v:'sp_shitai', l:'肢体不自由'},
+      {v:'sp_jakushi',l:'弱視'},
+      {v:'sp_nancho', l:'難聴'},
+      {v:'sp_gengo',  l:'言語障害'},
+      {v:'sp_byojaku',l:'病弱・身体虚弱'},
+    ];
+    const spOpts=spTypes.map(t=>`<option value="${t.v}" ${mode===t.v?'selected':''}>${t.l}</option>`).join('');
     gradeHtml=`<div class="setup-sec">
-      <label class="setup-lbl">クラス番号 <small>※設定後は変更できません</small></label>
+      <label class="setup-lbl">特別支援学級の種別・クラス <small>※設定後は変更できません</small></label>
       <div class="setup-grade-row">
-        <div style="padding:4px 8px;background:#f0f4f8;border-radius:4px;font-size:13px;color:#555">${getModeLabel(mode)}</div>
+        <select id="setup-sp-type" class="setup-sel">${spOpts}</select>
         <select id="setup-classnum" class="setup-sel">${classOpts}</select>
       </div>
     </div>`;
@@ -4508,9 +4535,10 @@ function renderSetupBody(){
         if(prevMode==='senka'&&newMode!=='senka'){
           if(S.cls==='専科'||/^専科\d+$/.test(S.cls)) S.cls='';
         }
-        // 知的・自情・特選択時：S.gradeをモード値に自動設定
+        // 特支選択時：sp_chiteki をデフォルト（サブ選択で変更可）
         if(isTokushiMode(newMode)){
-          S.grade=newMode; S.gradeSet=false; // gradeは文字列だが計算には使われない
+          if(!isTokushiMode(S.koury.mode)) S.koury.mode='sp_chiteki'; // 初回のみデフォルト
+          S.grade=S.koury.mode; S.gradeSet=false;
         } else if(isTokushiMode(prevMode)&&newMode!=='senka'){
           S.grade=3; // 通常学級に戻った場合はデフォルト学年にリセット
         }
@@ -4525,6 +4553,11 @@ function renderSetupBody(){
   }
   const schoolEl=document.getElementById('setup-school');
   if(schoolEl) schoolEl.oninput=e=>{S.schoolName=e.target.value;updateSchoolNameWarn();};
+  const spTypeEl=document.getElementById('setup-sp-type');
+  if(spTypeEl) spTypeEl.onchange=e=>{
+    S.koury.mode=e.target.value;S.grade=e.target.value;
+    document.querySelectorAll('.setup-mode-btn').forEach(b=>b.classList.toggle('on',isTokushiMode(b.dataset.mode)));
+  };
   document.getElementById('setup-cls').oninput=e=>{S.cls=e.target.value;checkSetupOk();};
   document.getElementById('setup-teacher').oninput=e=>{S.teacher=e.target.value;checkSetupOk();};
 }
@@ -4567,9 +4600,11 @@ function showSetupModal(){
     if(S.koury.mode==='senka'){
       S.grade='senka';S.gradeSet=true;S.classNum=null;S.subjects=[];
     } else if(isTokushiMode()){
-      // 知的・自情・特: gradeはモード値、教科は tokushi 用を設定
+      // 特支: setup-sp-type の選択値でモードを確定してからgradeに設定
+      const spSel=document.getElementById('setup-sp-type');
+      if(spSel) S.koury.mode=spSel.value;
       S.grade=S.koury.mode;S.gradeSet=true;
-      S.subjects=defSubjectsForGrade(1,'tokushi'); // grade=1で tokushi 用教科
+      S.subjects=defSubjectsForGrade(1,'tokushi');
       applyPlanStdDefaults();
     } else if(gradeEl&&+gradeEl.value>0){
       S.grade=+gradeEl.value;S.gradeSet=true;
