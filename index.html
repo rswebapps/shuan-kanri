@@ -220,6 +220,9 @@ td.cell.nocount{background:#fafafa;cursor:default}
 td.cell.nocount:hover{background:#fafafa}
 td.cell.inactive{background:#ebebeb!important;cursor:default!important;opacity:.6}
 td.cell.inactive:hover{background:#ebebeb!important}
+/* 非アクティブ日にデータが残存している場合（祝日・休業日への誤インポート等） */
+td.cell.inactive-hasdata{cursor:pointer!important;border:1.5px solid #e65100!important;opacity:.8!important}
+td.cell.inactive-hasdata:hover{background:#fff3e0!important;opacity:1!important}
 /* 交流児童チェックボックス（モーダル内）*/
 .koury-modal-sec{margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
 .koury-modal-lbl{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;
@@ -3190,7 +3193,11 @@ function renderTT(){
             inner+=`<div class="csep"></div><div class="srow"><span class="sname" style="color:${col2}">${c.s2}</span></div>`;
             if(c.m2) inner+=`<div class="cmemo">${escHtml(c.m2)}</div>`;
           }
-          rows+=`<td class="cell inactive"><div class="cin">${inner}</div></td>`;
+          // 同月・同週の非アクティブセル（祝日・休業日）にデータがある場合はクリック可能に
+          const isSameCtx=loc&&loc.month===curMonth&&loc.week===curWeek;
+          const extraCls=isSameCtx?' inactive-hasdata':'';
+          const extraAttr=isSameCtx?` data-sl="${sl.id}" data-dk="${dk}"`:'';
+          rows+=`<td class="cell inactive${extraCls}"${extraAttr}><div class="cin">${inner}</div></td>`;
         }
         continue;
       }
@@ -3231,6 +3238,10 @@ function renderTT(){
 
   // 授業セルのクリックイベント（inactive は除外）
   document.querySelectorAll('td.cell:not(.nocount):not(.inactive)').forEach(td=>{
+    td.addEventListener('click',()=>openModal(td.dataset.sl,td.dataset.dk));
+  });
+  // 非アクティブセルにデータが残存している場合（祝日・休業日への誤インポート等）のクリックイベント
+  document.querySelectorAll('td.cell.inactive-hasdata').forEach(td=>{
     td.addEventListener('click',()=>openModal(td.dataset.sl,td.dataset.dk));
   });
 
@@ -3852,6 +3863,17 @@ function closeModal(){
 }
 
 // ─── PATTERNS ────────────────────────────────────────────────────
+// 現在週の指定曜日が非アクティブか判定（パターンインポート時の書き込みスキップ用）
+function isDkInactiveForCurrentWeek(dk){
+  const mondayStr=getEffectiveMonday(curMonth,curWeek);
+  if(!mondayStr) return false;
+  const dt=new Date(mondayStr);
+  dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
+  const iso=localDateStr(dt);
+  if(dt.getMonth()+1!==curMonth) return true; // 月またぎ日
+  if(isDayInactive(iso)) return true;          // 祝日・休業日
+  return false;
+}
 function savePat(idx){
   const cells={};
   for(const sl of visSlots()){
@@ -3877,7 +3899,10 @@ function savePat(idx){
 function loadPat(idx){
   if(!confirm(`パターン「${S.patterns[idx].name||'パターン'+(idx+1)}」を現在の週に読み込みます。\n現在の入力内容は上書きされます。よろしいですか？`)) return;
   const cells=S.patterns[idx].cells||{};
-  for(const sid in cells) for(const dk in cells[sid]) setCell(curMonth,curWeek,sid,dk,cells[sid][dk]);
+  for(const sid in cells) for(const dk in cells[sid]){
+    if(isDkInactiveForCurrentWeek(dk)) continue; // 非アクティブ曜日はスキップ
+    setCell(curMonth,curWeek,sid,dk,cells[sid][dk]);
+  }
   // メモ行の復元（パターンにmemosが含まれている場合のみ）
   const memoData=S.patterns[idx].memos;
   if(memoData){
@@ -3885,6 +3910,7 @@ function loadPat(idx){
       const dayObj=memoData[key];
       if(!dayObj) return;
       DKEYS.forEach(dk=>{
+        if(isDkInactiveForCurrentWeek(dk)) return; // 非アクティブ曜日はスキップ
         if(dayObj[dk]!==undefined) setWeekMemo(curMonth,curWeek,key,dayObj[dk],dk);
       });
     });
