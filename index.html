@@ -220,17 +220,16 @@ td.cell.nocount{background:#fafafa;cursor:default}
 td.cell.nocount:hover{background:#fafafa}
 td.cell.inactive{background:#ebebeb!important;cursor:default!important;opacity:.6}
 td.cell.inactive:hover{background:#ebebeb!important}
-/* 非アクティブ日にデータが残存している場合（祝日・休業日への誤インポート等） */
 td.cell.inactive-hasdata{cursor:pointer!important;border:1.5px solid #e65100!important;opacity:.8!important}
 td.cell.inactive-hasdata:hover{background:#fff3e0!important;opacity:1!important}
 /* 交流児童チェックボックス（モーダル内）*/
-.koury-modal-sec{margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
-.koury-modal-lbl{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.06em;
-  text-transform:uppercase;margin-bottom:5px;display:block}
-.koury-checks{display:flex;flex-wrap:wrap;gap:5px}
-.koury-check-item{display:flex;align-items:center;gap:3px;cursor:pointer;
-  padding:2px 6px;border-radius:10px;border:1.5px solid;font-size:11px;font-weight:700;
-  transition:all .12s;user-select:none}
+.koury-modal-sec{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.koury-modal-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:7px;display:block}
+.koury-checks{display:flex;flex-wrap:wrap;gap:8px}
+.koury-check-item{display:flex;align-items:center;gap:4px;cursor:pointer;
+  padding:6px 12px;border-radius:12px;border:1.5px solid;font-size:14px;font-weight:700;
+  min-height:40px;transition:all .12s;user-select:none;touch-action:manipulation}
 .cin{display:flex;flex-direction:column;min-height:54px;padding:3px}
 /* テキスト選択を許可する要素 */
 textarea,input[type="text"],input[type="number"],input[type="date"],
@@ -440,34 +439,37 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
 #modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
   z-index:200;align-items:center;justify-content:center}
 #modal-bg.on{display:flex}
-.modal{background:#fff;border-radius:12px;padding:20px;width:460px;
-  max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)}
-.modal.wide{width:660px}
-.mtitle{font-size:14px;font-weight:700;color:var(--blue);margin-bottom:12px}
-.mnote{font-size:11px;color:var(--muted);background:#f8f9fc;padding:5px 9px;
-  border-radius:4px;margin-bottom:10px;border-left:3px solid var(--blue)}
-.m2cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.mcollabel{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;margin-bottom:8px}
+.modal{background:#fff;border-radius:14px;padding:24px;width:520px;
+  max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.modal.wide{width:720px}
+.mtitle{font-size:17px;font-weight:700;color:var(--blue);margin-bottom:14px}
+.mnote{font-size:13px;color:var(--muted);background:#f8f9fc;padding:8px 12px;
+  border-radius:4px;margin-bottom:12px;border-left:3px solid var(--blue)}
+.m2cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.mcollabel{font-size:12px;font-weight:700;padding:5px 10px;border-radius:4px;margin-bottom:10px}
 .mcl1{background:#e3f2fd;color:var(--col-full)}
 .mcl2{background:#fff3e0;color:var(--col-half)}
-.mf{margin-bottom:10px}
-.mfl{display:block;font-size:9px;font-weight:700;color:var(--muted);
-  letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
-.chips{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px;max-height:80px;overflow-y:auto}
-.chip{padding:2px 7px;border-radius:10px;font-size:11px;cursor:pointer;
-  border:1.5px solid #e0e3e8;background:#fff;font-family:inherit;font-weight:600}
+.mf{margin-bottom:14px}
+.mfl{display:block;font-size:11px;font-weight:700;color:var(--muted);
+  letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;max-height:160px;overflow-y:auto}
+.chip{padding:8px 14px;border-radius:12px;font-size:14px;cursor:pointer;
+  border:1.5px solid #e0e3e8;background:#fff;font-family:inherit;font-weight:600;
+  min-height:40px;display:flex;align-items:center;touch-action:manipulation}
 .chip.on{color:#fff!important;border-color:transparent!important}
-.mf input[type=text],.mf textarea{width:100%;padding:5px 8px;border:1px solid var(--border);
-  border-radius:5px;font-size:12px;font-family:inherit;color:var(--text)}
-.mf textarea{resize:vertical;height:40px}
-.add2btn{width:100%;padding:6px;background:#f5f6f8;border:1.5px dashed var(--border);
-  border-radius:6px;font-size:12px;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:4px}
+.mf input[type=text],.mf textarea{width:100%;padding:10px 12px;border:1px solid var(--border);
+  border-radius:6px;font-size:15px;font-family:inherit;color:var(--text)}
+.mf textarea{resize:vertical;height:56px}
+.add2btn{width:100%;padding:12px;background:#f5f6f8;border:1.5px dashed var(--border);
+  border-radius:8px;font-size:14px;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px;
+  touch-action:manipulation}
 .add2btn:hover{border-color:var(--col-half);color:var(--col-half);background:#fff3e0}
-.del2btn{width:100%;padding:5px;background:#ffebee;border:1px solid #ffcdd2;
-  border-radius:5px;font-size:11px;cursor:pointer;color:#c62828;font-family:inherit;margin-top:8px}
-.mbtns{display:flex;gap:7px;margin-top:14px}
-.mbtn{padding:7px 12px;border-radius:6px;font-size:12px;cursor:pointer;
-  font-family:inherit;border:1.5px solid;font-weight:600}
+.del2btn{width:100%;padding:10px;background:#ffebee;border:1px solid #ffcdd2;
+  border-radius:6px;font-size:13px;cursor:pointer;color:#c62828;font-family:inherit;margin-top:10px;
+  touch-action:manipulation}
+.mbtns{display:flex;gap:10px;margin-top:18px}
+.mbtn{padding:14px 18px;border-radius:8px;font-size:15px;cursor:pointer;
+  font-family:inherit;border:1.5px solid;font-weight:600;touch-action:manipulation}
 .mbok{background:var(--blue);border-color:var(--blue);color:#fff;flex:1}
 .mbok:hover{background:#155fa0}
 .mbdel{background:#ffebee;border-color:#ffcdd2;color:#c62828}
@@ -650,6 +652,9 @@ table.jrt tbody td:first-child{text-align:left;font-weight:600;font-size:11px}
     <span style="color:var(--border);margin:0 2px">|</span>
     <button class="pat-btn" id="btn-print">🖋 週案印刷</button>
     <button class="pat-btn" id="btn-print-student">✏️ 児童用時間割印刷</button>
+    <button class="pat-btn" id="btn-clear-inactive"
+      style="display:none;color:#e65100;border-color:#e65100;background:#fff8f5"
+      title="グレーアウト日（月またぎ・祝日・休業日）に残存するデータを削除します">🗑 非表示セルをクリア</button>
     <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text);white-space:nowrap;cursor:pointer;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:#fff">
       <input type="checkbox" id="chk-hira" style="accent-color:var(--blue);width:12px;height:12px"> ひらがな
     </label>
@@ -1477,6 +1482,7 @@ function calcActual(pairs){
         const isMod=sl.base==='mod';
         const unitMod=1/(sl.modN||3);
         for(const dk of DKEYS){
+          if(isDkInactiveForMonthWeek(m,w,dk)) continue; // 月またぎ・祝日・休業日はスキップ
           const c=getCell(m,w,sl.id,dk);
           const has2=!!c.s2;
           const r1=has2?(c.ratio1??0.5):1; // 教科1の比率（デフォルト0.5）
@@ -3193,7 +3199,6 @@ function renderTT(){
             inner+=`<div class="csep"></div><div class="srow"><span class="sname" style="color:${col2}">${c.s2}</span></div>`;
             if(c.m2) inner+=`<div class="cmemo">${escHtml(c.m2)}</div>`;
           }
-          // 同月・同週の非アクティブセル（祝日・休業日）にデータがある場合はクリック可能に
           const isSameCtx=loc&&loc.month===curMonth&&loc.week===curWeek;
           const extraCls=isSameCtx?' inactive-hasdata':'';
           const extraAttr=isSameCtx?` data-sl="${sl.id}" data-dk="${dk}"`:'';
@@ -3240,10 +3245,11 @@ function renderTT(){
   document.querySelectorAll('td.cell:not(.nocount):not(.inactive)').forEach(td=>{
     td.addEventListener('click',()=>openModal(td.dataset.sl,td.dataset.dk));
   });
-  // 非アクティブセルにデータが残存している場合（祝日・休業日への誤インポート等）のクリックイベント
   document.querySelectorAll('td.cell.inactive-hasdata').forEach(td=>{
     td.addEventListener('click',()=>openModal(td.dataset.sl,td.dataset.dk));
   });
+  // 非表示セルクリアボタンの表示状態を更新
+  updateInactiveClearBtn();
 
   // 行事テキストエリアの保存イベント
   document.querySelectorAll('textarea[data-scheduledate]').forEach(ta=>{
@@ -3705,14 +3711,14 @@ function renderMBody(){
     const lcls=which===1?'mcl1':'mcl2';
     const unitNote=isMod?`（1/${modN}単位）`:has2?`（${ratioVal}単位）`:'（1単位）';
     const ratioInput=has2&&which===1?`
-      <div class="mf" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div class="mf" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <label class="mfl" style="margin-bottom:0;white-space:nowrap">1教科目の比率</label>
         <input type="number" id="ratio1-inp" min="0.1" max="0.9" step="0.1"
-          value="${r1}" style="width:70px;padding:4px 6px;border:1px solid var(--border);
-          border-radius:5px;font-size:13px;font-family:inherit;text-align:center">
-        <span style="font-size:11px;color:var(--muted)">2教科目：<b id="ratio2-disp">${r2}</b></span>
+          value="${r1}" style="width:80px;padding:8px 10px;border:1px solid var(--border);
+          border-radius:6px;font-size:15px;font-family:inherit;text-align:center">
+        <span style="font-size:13px;color:var(--muted)">2教科目：<b id="ratio2-disp">${r2}</b></span>
       </div>`:
-      has2&&which===2?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding:3px 8px;background:#f5f6f8;border-radius:4px">比率：<b>${r2}</b>（1 − ${r1}）</div>`:'';
+      has2&&which===2?`<div style="font-size:13px;color:var(--muted);margin-bottom:8px;padding:5px 10px;background:#f5f6f8;border-radius:4px">比率：<b>${r2}</b>（1 − ${r1}）</div>`:'';'';
     return `<div>
       <div class="mcollabel ${lcls}">${lbl} ${unitNote}</div>
       ${ratioInput}
@@ -3863,15 +3869,24 @@ function closeModal(){
 }
 
 // ─── PATTERNS ────────────────────────────────────────────────────
-// 現在週の指定曜日が非アクティブか判定（パターンインポート時の書き込みスキップ用）
 function isDkInactiveForCurrentWeek(dk){
   const mondayStr=getEffectiveMonday(curMonth,curWeek);
   if(!mondayStr) return false;
   const dt=new Date(mondayStr);
   dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
   const iso=localDateStr(dt);
-  if(dt.getMonth()+1!==curMonth) return true; // 月またぎ日
-  if(isDayInactive(iso)) return true;          // 祝日・休業日
+  if(dt.getMonth()+1!==curMonth) return true;
+  if(isDayInactive(iso)) return true;
+  return false;
+}
+// 任意の月・週・曜日が非アクティブか判定（calcActual スキップ用）
+function isDkInactiveForMonthWeek(m,w,dk){
+  const mondayStr=getEffectiveMonday(m,w);
+  if(!mondayStr) return false;
+  const dt=new Date(mondayStr);
+  dt.setDate(dt.getDate()+DAY_OFFSETS[dk]);
+  if(dt.getMonth()+1!==m) return true;             // 月またぎ日
+  if(isDayInactive(localDateStr(dt))) return true;  // 祝日・休業日
   return false;
 }
 function savePat(idx){
@@ -3900,17 +3915,16 @@ function loadPat(idx){
   if(!confirm(`パターン「${S.patterns[idx].name||'パターン'+(idx+1)}」を現在の週に読み込みます。\n現在の入力内容は上書きされます。よろしいですか？`)) return;
   const cells=S.patterns[idx].cells||{};
   for(const sid in cells) for(const dk in cells[sid]){
-    if(isDkInactiveForCurrentWeek(dk)) continue; // 非アクティブ曜日はスキップ
+    if(isDkInactiveForCurrentWeek(dk)) continue;
     setCell(curMonth,curWeek,sid,dk,cells[sid][dk]);
   }
-  // メモ行の復元（パターンにmemosが含まれている場合のみ）
   const memoData=S.patterns[idx].memos;
   if(memoData){
     ['asa','gyoukan','lunch','leave','hw','renraku'].forEach(key=>{
       const dayObj=memoData[key];
       if(!dayObj) return;
       DKEYS.forEach(dk=>{
-        if(isDkInactiveForCurrentWeek(dk)) return; // 非アクティブ曜日はスキップ
+        if(isDkInactiveForCurrentWeek(dk)) return;
         if(dayObj[dk]!==undefined) setWeekMemo(curMonth,curWeek,key,dayObj[dk],dk);
       });
     });
@@ -3918,6 +3932,37 @@ function loadPat(idx){
     if(memoData.notice!==undefined) setWeekMemo(curMonth,curWeek,'notice',memoData.notice);
   }
   renderTT();renderJisuu();
+}
+// 現在週の非アクティブ日（月またぎ・祝日・休業日）に残存するセルデータを一括クリア
+function clearInactiveCells(){
+  let count=0;
+  for(const sl of S.slots){
+    if(sl.base==='none') continue;
+    for(const dk of DKEYS){
+      if(!isDkInactiveForCurrentWeek(dk)) continue;
+      const c=getCell(curMonth,curWeek,sl.id,dk);
+      if(c.s1||c.s2){
+        setCell(curMonth,curWeek,sl.id,dk,{s1:'',m1:'',s2:'',m2:'',ratio1:null,koury1:null,koury2:null});
+        count++;
+      }
+    }
+  }
+  return count;
+}
+// 非表示セルクリアボタンの表示/非表示を更新
+function updateInactiveClearBtn(){
+  const btn=document.getElementById('btn-clear-inactive');
+  if(!btn) return;
+  let hasData=false;
+  outer:for(const sl of S.slots){
+    if(sl.base==='none') continue;
+    for(const dk of DKEYS){
+      if(!isDkInactiveForCurrentWeek(dk)) continue;
+      const c=getCell(curMonth,curWeek,sl.id,dk);
+      if(c.s1||c.s2){hasData=true;break outer;}
+    }
+  }
+  btn.style.display=hasData?'':'none';
 }
 function buildPatMenus(){
   const sm=document.getElementById('psave-menu'),lm=document.getElementById('pload-menu');
@@ -4583,6 +4628,7 @@ function renderSetupBody(){
   if(spTypeEl) spTypeEl.onchange=e=>{
     S.koury.mode=e.target.value;S.grade=e.target.value;
     document.querySelectorAll('.setup-mode-btn').forEach(b=>b.classList.toggle('on',isTokushiMode(b.dataset.mode)));
+    checkSetupOk();
   };
   document.getElementById('setup-cls').oninput=e=>{S.cls=e.target.value;checkSetupOk();};
   document.getElementById('setup-teacher').oninput=e=>{S.teacher=e.target.value;checkSetupOk();};
@@ -4591,8 +4637,9 @@ function renderSetupBody(){
 function checkSetupOk(){
   const mode=S.koury.mode;
   const isSenka=mode==='senka';
+  // 特支モードは setup-grade がなく setup-sp-type で種別が常に選択済みのため gradeOk=true
   const gradeEl=document.getElementById('setup-grade');
-  const gradeOk=isSenka||S.gradeSet||(gradeEl&&+gradeEl.value>0);
+  const gradeOk=isSenka||isTokushiMode()||S.gradeSet||(gradeEl&&+gradeEl.value>0);
   const allOk=!!(mode&&gradeOk&&S.cls.trim()&&S.teacher.trim());
   const btn=document.getElementById('setup-ok');
   if(btn) btn.classList.toggle('ready',allOk);
@@ -5463,6 +5510,12 @@ function init(){
   document.getElementById('btn-open-file').onclick=()=>loadFromFile();
   document.getElementById('btn-print').onclick=()=>printWeek();
   document.getElementById('btn-print-student').onclick=()=>printForStudents();
+  document.getElementById('btn-clear-inactive').onclick=()=>{
+    if(!confirm('現在の週のグレーアウト日（月またぎ・祝日・休業日）に残存するデータを削除します。\nよろしいですか？')) return;
+    const n=clearInactiveCells();
+    save();renderTT();renderJisuu();
+    alert(`${n}コマのデータを削除しました。`);
+  };
   document.getElementById('btn-prev-week').onclick=()=>prevWeekNav();
   document.getElementById('btn-today').onclick=()=>gotoToday();
   document.getElementById('btn-next-week').onclick=()=>nextWeekNav();
